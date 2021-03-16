@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.0.0
+ * @version		1.0.1
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -46,6 +46,9 @@
 
 		this.func = {};
 		this.func.data = this.data;
+
+		this.app = document.querySelector('#app');
+
 		new SlenderHooks(options.hooks,this);
 		new SlenderRender(options.render,this);
 		new SlenderRouter(options.router,this);
@@ -150,7 +153,8 @@
 			...{
 				templates: [],
 				viewParams: [],
-				currentTag: null
+				currentTag: null,
+				currentTemplate: null,
 			},
 			...options
 		};
@@ -160,6 +164,7 @@
 			let rawHTML = 'Error: Template "'+template+'" not found';
 
 			if(template in options.templates){
+				options.currentTemplate = template;
 				rawHTML = buildRaw(options.templates[template],templateData);
 			}
 
@@ -379,6 +384,11 @@
 
 					options.viewParams = arrParameters;
 					arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
+
+					//Template is relative to current template
+					if(strReference.startsWith('./')){
+						strReference = options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','');
+					}
 
 					strTagData = build(strReference,arrData,blRemoveTags,blProcessTags);
 					rawHTML = replaceTag(rawHTML,strTag,strTagData,strFunction,[],arrParameters);
@@ -641,7 +651,7 @@
 
 			//Register the default page transition (Switch directly to the page, no animation)
 			$.func.hooks.register('router_page_transition','default',function(urlPath, pageTitle, pageBody, pageInfo){
-				document.body.innerHTML = pageBody;
+				this.app.innerHTML = pageBody;
 			})
 
 			//Add the default/site wide meta tags to the header

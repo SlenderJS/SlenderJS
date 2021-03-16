@@ -10,7 +10,7 @@ Download a copy of the library from the GIT repo and including it in the head of
 
 `<script src='slender.min.js'></script>`
 
-First off you will need to initalise the Slender engine by calling the following command
+First off you will need to initialise the Slender engine by calling the following command
 
 `new SlenderJS();`
 
@@ -59,7 +59,7 @@ SlenderJS.router.addRoute('/second/page',{
 });
 ```
 
-When using routing you will need to call the start function as the last thing in your script, this will instruct the browser to start routing the pages.
+When using routing you will need to have an `<div id="app"></div>` in your page body and call the start function upon page load, this will instruct the browser to start routing the pages and give it a place to output the page HTML.
 
 `SlenderJS.router.start();`
 
@@ -69,10 +69,10 @@ Routing using virtual paths will require the use of .htaccess or equivalent depe
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
-	RewriteRule ^index.html$ - [L]
-	RewriteCond %{REQUEST_FILENAME} !-f
-	RewriteCond %{REQUEST_FILENAME} !-d
-	RewriteRule . /index.html [L]
+    RewriteRule ^index.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
 </IfModule>
 ```
 
