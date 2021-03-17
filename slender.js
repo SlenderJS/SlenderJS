@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.1.0
+ * @version		1.1.1
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -36,10 +36,11 @@
 		//Generic data storage
 		this.data = {};
 
-		//Define the options for the sub libraries
-		options.hooks = options.render || [];
-		options.render = options.render || [];
-		options.router = options.router || [];
+		//Define the configuration options for the sub libraries
+		this.conf = {};
+		this.conf.hooks = options.hooks || [];
+		this.conf.render = options.render || [];
+		this.conf.router = options.router || [];
 
 		//Load in the global functions (attach them to this)
 		new SlenderGlobals(this);
@@ -49,9 +50,9 @@
 
 		this.app = document.querySelector('#app');
 
-		new SlenderHooks(options.hooks,this);
-		new SlenderRender(options.render,this);
-		new SlenderRouter(options.router,this);
+		new SlenderHooks(this);
+		new SlenderRender(this);
+		new SlenderRouter(this);
 
 		//Create the global instance of the library
 		window.SlenderJS = this.func;
@@ -60,11 +61,10 @@
 	/**
 	 * SlenderJS :: Hooks
 	 * All the SlenderJS engine to be expandable
-	 * @param options
 	 * @param $
 	 * @constructor
 	 */
-	function SlenderHooks(options,$){
+	function SlenderHooks($){
 
 		//Set all the functions that are publicly accessible
 		$.func.hooks = {
@@ -76,36 +76,36 @@
 		};
 
 		//Merge the defaults, options an new data
-		options = {
+		$.conf.hooks = {
 			...{
-				hooks: [],
+				list: [],
 			},
-			...options
+			...$.conf.hooks
 		};
 
 		function all(library){
-			return (library in options.hooks) ? options.hooks[library] : [];
+			return (library in $.conf.hooks.list) ? $.conf.hooks.list[library] : [];
 		}
 
 		function get(library,hook){
-			return (library in options.hooks && hook in options.hooks[library]) ? options.hooks[library][hook] : null;
+			return (library in $.conf.hooks.list && hook in $.conf.hooks.list[library]) ? $.conf.hooks.list[library][hook] : null;
 		}
 
 		function register(library,hook,data){
 
-			if(!(library in options.hooks)){
-				options.hooks[library] = [];
+			if(!(library in $.conf.hooks.list)){
+				$.conf.hooks.list[library] = [];
 			}
 
-			options.hooks[library][hook] = data;
+			$.conf.hooks.list[library][hook] = data;
 		}
 
 		function cancel(library,hook){
 
-			if(library in options.hooks){
-				let index = options.hooks[library].indexOf(hook);
+			if(library in $.conf.hooks.list){
+				let index = $.conf.hooks.list[library].indexOf(hook);
 				if(index > -1){
-					options.hooks[library].splice(index, 1);
+					$.conf.hooks.list[library].splice(index, 1);
 				}
 			}
 		}
@@ -135,11 +135,10 @@
 	/**
 	 * SlenderJS :: Render
 	 * function to process View templates in the same format as TwistPHP::View()
-	 * @param options
 	 * @param $
 	 * @constructor
 	 */
-	function SlenderRender(options,$){
+	function SlenderRender($){
 
 		//Set all the functions that are publicly accessible
 		$.func.render = {
@@ -149,33 +148,33 @@
 		};
 
 		//Merge the defaults, options an new data
-		options = {
+		$.conf.render = {
 			...{
 				templates: [],
 				viewParams: [],
 				currentTag: null,
 				currentTemplate: null,
 			},
-			...options
+			...$.conf.render
 		};
 
 		function build(template,templateData){
 
 			let rawHTML = 'Error: Template "'+template+'" not found';
-			let previousTemplate = options.currentTemplate
+			let previousTemplate = $.conf.render.currentTemplate
 
 			//Template is relative to current template
 			if(template.startsWith('./')){
-				template = (options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+template.replace('./','')).replace('//','/');
+				template = ($.conf.render.currentTemplate.split('/').slice(0,-1).join('/')+'/'+template.replace('./','')).replace('//','/');
 			}
 
-			if(template in options.templates){
-				options.currentTemplate = template;
-				rawHTML = buildRaw(options.templates[template],templateData);
+			if(template in $.conf.render.templates){
+				$.conf.render.currentTemplate = template;
+				rawHTML = buildRaw($.conf.render.templates[template],templateData);
 			}
 
 			//Restore the previous current template after the current build has run
-			options.currentTemplate = previousTemplate;
+			$.conf.render.currentTemplate = previousTemplate;
 
 			return rawHTML;
 		}
@@ -198,7 +197,7 @@
 		}
 
 		function addTemplate(strTemplateName,strHTML){
-			options.templates[strTemplateName] = strHTML;
+			$.conf.render.templates[strTemplateName] = strHTML;
 			$.func.hooks.fire('render_add_template',[ strTemplateName, strHTML ]);
 		}
 
@@ -360,7 +359,7 @@
 			let strFunction = '';
 			let arrMatchResults = [];
 			let strTagData = '';
-			options.currentTag = strTag;
+			$.conf.render.currentTag = strTag;
 
 			if(strType.includes('[') && strReference.includes(']')){
 
@@ -399,12 +398,12 @@
 
 				case'view':
 
-					options.viewParams = arrParameters;
+					$.conf.render.viewParams = arrParameters;
 					arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
 
 					//Template is relative to current template
 					if(strReference.startsWith('./')){
-						strReference = (options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
+						strReference = ($.conf.render.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
 					}
 
 					strTagData = build(strReference,arrData,blRemoveTags,blProcessTags);
@@ -414,7 +413,7 @@
 
 				case'repeater':
 
-					options.viewParams = arrParameters;
+					$.conf.render.viewParams = arrParameters;
 					//arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
 
 					if(!$.isEmpty(arrParameters['view']) && strReference in arrData && arrData[strReference].length){
@@ -667,11 +666,10 @@
 	/**
 	 * SlenderJS :: Router
 	 * function to process routing in the browser, inspired by VueJS and TwistPHP::Route()
-	 * @param options
 	 * @param $
 	 * @constructor
 	 */
-	function SlenderRouter(options,$){
+	function SlenderRouter($){
 
 		//Set all the functions that are publicly accessible
 		$.func.router = {
@@ -681,22 +679,22 @@
 		};
 
 		//Ensure we have empty arrays for key defaults
-		options.transition = options.transition || 'default';
-		options.meta = options.meta || [];
-		options.domains = options.domains || [];
-		options.routes = options.routes || [];
+		$.conf.router.transition = $.conf.router.transition || 'default';
+		$.conf.router.meta = $.conf.router.meta || [];
+		$.conf.router.domains = $.conf.router.domains || [];
+		$.conf.router.routes = $.conf.router.routes || [];
 
 		//Merge the defaults, options an new data, we are doing a multi-level merge here
-		options = {
-			transition: options.transition,
-			domains: options.domains,
+		$.conf.router = {
+			transition: $.conf.router.transition,
+			domains: $.conf.router.domains,
 			meta: {
 				...[
 					{ charset: "UTF-8" },
 					{ name: "viewport", content: "width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" },
 					{ "http-equiv": "X-UA-Compatible", content: "ie=edge" },
 				],
-				...options.meta
+				...$.conf.router.meta
 			},
 			routes: {
 				...{
@@ -709,7 +707,7 @@
 						template: '403.tpl'
 					}
 				},
-				...options.routes
+				...$.conf.router.routes
 			}
 		}
 
@@ -723,24 +721,24 @@
 			})
 
 			//Add the default/site wide meta tags to the header
-			generateMetaData(options.meta,false);
+			generateMetaData($.conf.router.meta,false);
 
 			//Render the landing page
 			renderPage(window.location.pathname);
 		}
 
 		function addRoute(path,route){
-			options.routes[path] = route;
+			$.conf.router.routes[path] = route;
 			$.func.hooks.fire('router_add_route',[ path, route ]);
 		}
 
 		function renderPage(path){
 
 			//Set the default page as 404, use "var" so that we can pass by REF in the hooks
-			var routerCurrent = options.routes['404'];
+			var routerCurrent = $.conf.router.routes['404'];
 
-			if(path in options.routes){
-				routerCurrent = options.routes[path];
+			if(path in $.conf.router.routes){
+				routerCurrent = $.conf.router.routes[path];
 			}
 
 			//Ensure that all the defaults are configured
@@ -820,7 +818,7 @@
 
 		function pushState(urlPath, pageTitle, pageBody, pageInfo){
 
-			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, pageInfo ],options.transition);
+			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, pageInfo ],$.conf.router.transition);
 
 			document.title = pageTitle;
 			renderPageHead(pageInfo);
@@ -853,7 +851,7 @@
 
 				if(url){
 					let urlData = $.parseUri(url);
-					if(url && (url.startsWith('/') || $.inArray(urlData.hostname,options.domains))){
+					if(url && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.router.domains))){
 						e.preventDefault();
 						renderPage(urlData.pathname);
 					}
