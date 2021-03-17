@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.0.1
+ * @version		1.1.0
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -162,16 +162,29 @@
 		function build(template,templateData){
 
 			let rawHTML = 'Error: Template "'+template+'" not found';
+			let previousTemplate = options.currentTemplate
+
+			//Template is relative to current template
+			if(template.startsWith('./')){
+				template = (options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+template.replace('./','')).replace('//','/');
+			}
 
 			if(template in options.templates){
 				options.currentTemplate = template;
 				rawHTML = buildRaw(options.templates[template],templateData);
 			}
 
+			//Restore the previous current template after the current build has run
+			options.currentTemplate = previousTemplate;
+
 			return rawHTML;
 		}
 
 		function buildRaw(rawHTML,templateData){
+
+			if(typeof rawHTML === 'function'){
+				return rawHTML.call($, ...[templateData]);
+			}
 
 			let tags = getTags(rawHTML);
 			if(tags.length > 0){
@@ -302,7 +315,7 @@
 						//Step 4 - Grab the result parameters
 						arrResults = $.preg_match_all(/(\'([^\']*)\'|\"([^\"]*)\"|([\d]+)|([\w\.\-\_\/\[]+:[\w\.\_\-\/\]]+)):?/gi,arrItems[2]);
 
-						if(arrResults[5][(blOut)?0:1] !== ''){
+						if(!$.isEmpty(arrResults[5][(blOut)?0:1])){
 							let arrTagParts = arrResults[5][(blOut)?0:1].split(':');
 
 							//Would crc32() be faster?
@@ -379,6 +392,10 @@
 						rawHTML = replaceTag(rawHTML, strTag, results.return, strFunction, results.return_raw, arrParameters);
 					}
 					break;
+				case'date':
+					strTagData = $.date(strReference);
+					rawHTML = replaceTag(rawHTML,strTag,strTagData,strFunction,[],arrParameters);
+					break;
 
 				case'view':
 
@@ -387,7 +404,7 @@
 
 					//Template is relative to current template
 					if(strReference.startsWith('./')){
-						strReference = options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','');
+						strReference = (options.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
 					}
 
 					strTagData = build(strReference,arrData,blRemoveTags,blProcessTags);
@@ -423,7 +440,10 @@
 
 						//An array of data has been returned, this is data tags
 						if(typeof strReplacementData === 'object'){
-							strReplacementData = processArrayItem(strReference,mxdExtensions,blReturnArray)
+							let result = processArrayItem(strReference,strReplacementData,blReturnArray);
+							if(result.status === true){
+								strReplacementData = result.return;
+							}
 						}
 
 						rawHTML = replaceTag(rawHTML,strTag,strReplacementData,strFunction,[],arrParameters);
@@ -449,7 +469,7 @@
 					let mxdTempData = '';
 					//$mxdTempData = \Twist::framework()->tools()->arrayParse($strKey,$arrData);
 
-					result.status = !$.isEmpty($mxdTempData);
+					result.status = !$.isEmpty(mxdTempData);
 					result.return = (typeof(arrData[strKey]) == 'object' && blReturnArray === false) ? JSON.stringify(mxdTempData, null, 4) : mxdTempData;
 					result.return_raw = mxdTempData;
 
@@ -466,6 +486,54 @@
 		}
 
 		function replaceTag(rawHTML, tag, returndata, strFunction, return_raw, parameters){
+
+			if(!$.isEmpty(strFunction)){
+
+				let allowedFunctions = [
+					'count',
+					'strlen','strtolower','strtoupper',
+					//'prettytime','bytestosize',
+					'date'
+				];
+
+				if($.inArray(strFunction,allowedFunctions)){
+
+					switch(strFunction){
+						case'count':
+						case'strlen':
+							returndata = return_raw.length;
+							break;
+						case'strtolower':
+							returndata = return_raw.toLowerCase();
+							break;
+						case'strtoupper':
+							returndata = return_raw.toUpperCase();
+							break;
+						case'date':
+
+							let strDateFormat = 'Y-m-d H:i:s';
+
+							if('format' in parameters){
+								strDateFormat = parameters['format'];
+							}else if(0 in parameters){
+								strDateFormat = parameters[0];
+							}else if(parameters.length === 1){
+								strDateFormat = $.arrayKeys(parameters).splice(0,1);
+							}
+
+							returndata = $.date(strDateFormat,Date.parse(returndata));
+							break;
+						case'prettytime':
+							break;
+						case'bytestosize':
+							break;
+					}
+
+				}else{
+					console.error("SlenderJS :: function '"+strFunction+"' is not available");
+				}
+			}
+
 			return rawHTML.replace('{'+tag+'}',returndata);
 		}
 
@@ -803,6 +871,12 @@
 	 */
 	function SlenderGlobals($){
 
+		$.arrayKeys = function(arrData){
+			let keys = [];
+			for(let key in arrData){ if(!arrData.hasOwnProperty(key)) continue; keys.push(key) }
+			return keys;
+		}
+
 		$.inArray = function(item,arrData){
 			return (arrData.length && arrData.indexOf(item) > -1);
 		}
@@ -921,6 +995,68 @@
 				b=ii(b,c,d,a,x[i+ 9],21, -343485551);a=ad(a,olda);b=ad(b,oldb);c=ad(c,oldc);d=ad(d,oldd);
 			}
 			return rh(a)+rh(b)+rh(c)+rh(d);
+		}
+
+		/**
+		 * See: https://github.com/locutusjs/locutus/blob/master/src/php/datetime/date.js
+		 */
+		$.date = function(format, timestamp) {
+			let jsdate, f
+			const txtWords = ['Sun','Mon','Tues','Wednes','Thurs','Fri','Satur','January','February','March','April','May','June','July', 'August','September','October','November','December']
+			const formatChr = /\\?(.?)/gi
+			const formatChrCb = function(t, s){return f[t] ? f[t]() : s}
+			const _pad = function(n, c){
+				n = String(n)
+				while(n.length < c){ n='0'+n }
+				return n
+			}
+			f = {
+				d: function(){return _pad(f.j(), 2)},
+				D: function(){return f.l().slice(0, 3)},
+				j: function(){return jsdate.getDate()},
+				l: function(){return txtWords[f.w()] + 'day'},
+				N: function(){return f.w() || 7},
+				S: function(){const j = f.j(); let i = j % 10; i = (i <= 3 && parseInt((j % 100) / 10, 10) === 1) ? 0 : i; return ['st', 'nd', 'rd'][i - 1] || 'th'},
+				w: function(){return jsdate.getDay()},
+				z: function(){const a = new Date(f.Y(), f.n() - 1, f.j()), b = new Date(f.Y(), 0, 1); return Math.round((a - b) / 864e5)},
+				W: function(){const a = new Date(f.Y(), f.n() - 1, f.j() - f.N() + 3), b = new Date(a.getFullYear(), 0, 4); return _pad(1 + Math.round((a - b) / 864e5 / 7), 2)},
+				F: function(){return txtWords[6 + f.n()]},
+				m: function(){return _pad(f.n(), 2)},
+				M: function(){return f.F().slice(0, 3)},
+				n: function(){return jsdate.getMonth() + 1},
+				t: function(){return (new Date(f.Y(), f.n(), 0)).getDate()},
+				L: function(){const j = f.Y(); return j % 4 === 0 & j % 100 !== 0 | j % 400 === 0 },
+				o: function(){const n = f.n(), W = f.W(), Y = f.Y(); return Y + (n === 12 && W < 9 ? 1 : n === 1 && W > 9 ? -1 : 0) },
+				Y: function(){return jsdate.getFullYear()},
+				y: function(){return f.Y().toString().slice(-2)},
+				a: function(){return jsdate.getHours() > 11 ? 'pm' : 'am'},
+				A: function(){return f.a().toUpperCase()},
+				B: function(){const H = jsdate.getUTCHours() * 36e2, i = jsdate.getUTCMinutes() * 60, s = jsdate.getUTCSeconds(); return _pad(Math.floor((H + i + s + 36e2) / 86.4) % 1e3, 3)},
+				g: function(){return f.G() % 12 || 12 },
+				G: function(){return jsdate.getHours() },
+				h: function(){return _pad(f.g(),2) },
+				H: function(){return _pad(f.G(), 2)},
+				i: function(){return _pad(jsdate.getMinutes(), 2)},
+				s: function(){return _pad(jsdate.getSeconds(), 2)},
+				u: function(){return _pad(jsdate.getMilliseconds() * 1000, 6)},
+				e: function(){const msg = 'Not supported (see source code of date() for timezone on how to add support)'; throw new Error(msg)},
+				I: function(){const a = new Date(f.Y(), 0),c = Date.UTC(f.Y(), 0),b = new Date(f.Y(), 6),d = Date.UTC(f.Y(), 6); return ((a - c) !== (b - d)) ? 1 : 0},
+				O: function(){const tzo = jsdate.getTimezoneOffset(), a = Math.abs(tzo); return (tzo > 0 ? '-' : '+') + _pad(Math.floor(a / 60) * 100 + a % 60, 4)},
+				P: function(){const O = f.O(); return (O.substr(0, 3) + ':' + O.substr(3, 2))},
+				T: function(){return 'UTC'},
+				Z: function(){return -jsdate.getTimezoneOffset() * 60},
+				c: function(){return 'Y-m-d\\TH:i:sP'.replace(formatChr, formatChrCb)},
+				r: function(){return 'D, d M Y H:i:s O'.replace(formatChr, formatChrCb)},
+				U: function(){return jsdate / 1000 | 0}
+			}
+			const _date = function (format, timestamp) {
+				jsdate = (timestamp === undefined ? new Date() // Not provided
+						: (timestamp instanceof Date) ? new Date(timestamp) // JS Date()
+							: new Date(timestamp * 1000) // UNIX timestamp (auto-convert to int)
+				)
+				return format.replace(formatChr, formatChrCb)
+			}
+			return _date(format, timestamp)
 		}
 	}
 
