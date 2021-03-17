@@ -36,11 +36,8 @@
 		//Generic data storage
 		this.data = {};
 
-		//Define the configuration options for the sub libraries
-		this.conf = {};
-		this.conf.hooks = options.hooks || [];
-		this.conf.render = options.render || [];
-		this.conf.router = options.router || [];
+		//Store the startup options in global config
+		this.conf = options;
 
 		//Load in the global functions (attach them to this)
 		new SlenderGlobals(this);
@@ -76,36 +73,31 @@
 		};
 
 		//Merge the defaults, options an new data
-		$.conf.hooks = {
-			...{
-				list: [],
-			},
-			...$.conf.hooks
-		};
-
+		$.conf.hooks = $.conf.hooks || [];
+		
 		function all(library){
-			return (library in $.conf.hooks.list) ? $.conf.hooks.list[library] : [];
+			return (library in $.conf.hooks) ? $.conf.hooks[library] : [];
 		}
 
 		function get(library,hook){
-			return (library in $.conf.hooks.list && hook in $.conf.hooks.list[library]) ? $.conf.hooks.list[library][hook] : null;
+			return (library in $.conf.hooks && hook in $.conf.hooks[library]) ? $.conf.hooks[library][hook] : null;
 		}
 
 		function register(library,hook,data){
 
-			if(!(library in $.conf.hooks.list)){
-				$.conf.hooks.list[library] = [];
+			if(!(library in $.conf.hooks)){
+				$.conf.hooks[library] = [];
 			}
 
-			$.conf.hooks.list[library][hook] = data;
+			$.conf.hooks[library][hook] = data;
 		}
 
 		function cancel(library,hook){
 
-			if(library in $.conf.hooks.list){
-				let index = $.conf.hooks.list[library].indexOf(hook);
+			if(library in $.conf.hooks){
+				let index = $.conf.hooks[library].indexOf(hook);
 				if(index > -1){
-					$.conf.hooks.list[library].splice(index, 1);
+					$.conf.hooks[library].splice(index, 1);
 				}
 			}
 		}
@@ -147,34 +139,29 @@
 			addTemplate: addTemplate
 		};
 
-		//Merge the defaults, options an new data
-		$.conf.render = {
-			...{
-				templates: [],
-				viewParams: [],
-				currentTag: null,
-				currentTemplate: null,
-			},
-			...$.conf.render
-		};
-
+		//Merge in the default configs with any custom that have been set on startup
+		$.conf.templates = $.conf.templates || [];
+		$.conf.viewParams = $.conf.viewParams || [];
+		$.conf.currentTag = $.conf.currentTag || null;
+		$.conf.currentTemplate = $.conf.currentTemplate || null;
+		
 		function build(template,templateData){
 
 			let rawHTML = 'Error: Template "'+template+'" not found';
-			let previousTemplate = $.conf.render.currentTemplate
+			let previousTemplate = $.conf.currentTemplate
 
 			//Template is relative to current template
 			if(template.startsWith('./')){
-				template = ($.conf.render.currentTemplate.split('/').slice(0,-1).join('/')+'/'+template.replace('./','')).replace('//','/');
+				template = ($.conf.currentTemplate.split('/').slice(0,-1).join('/')+'/'+template.replace('./','')).replace('//','/');
 			}
 
-			if(template in $.conf.render.templates){
-				$.conf.render.currentTemplate = template;
-				rawHTML = buildRaw($.conf.render.templates[template],templateData);
+			if(template in $.conf.templates){
+				$.conf.currentTemplate = template;
+				rawHTML = buildRaw($.conf.templates[template],templateData);
 			}
 
 			//Restore the previous current template after the current build has run
-			$.conf.render.currentTemplate = previousTemplate;
+			$.conf.currentTemplate = previousTemplate;
 
 			return rawHTML;
 		}
@@ -197,7 +184,7 @@
 		}
 
 		function addTemplate(strTemplateName,strHTML){
-			$.conf.render.templates[strTemplateName] = strHTML;
+			$.conf.templates[strTemplateName] = strHTML;
 			$.func.hooks.fire('render_add_template',[ strTemplateName, strHTML ]);
 		}
 
@@ -359,7 +346,7 @@
 			let strFunction = '';
 			let arrMatchResults = [];
 			let strTagData = '';
-			$.conf.render.currentTag = strTag;
+			$.conf.currentTag = strTag;
 
 			if(strType.includes('[') && strReference.includes(']')){
 
@@ -398,12 +385,12 @@
 
 				case'view':
 
-					$.conf.render.viewParams = arrParameters;
+					$.conf.viewParams = arrParameters;
 					arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
 
 					//Template is relative to current template
 					if(strReference.startsWith('./')){
-						strReference = ($.conf.render.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
+						strReference = ($.conf.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
 					}
 
 					strTagData = build(strReference,arrData,blRemoveTags,blProcessTags);
@@ -413,7 +400,7 @@
 
 				case'repeater':
 
-					$.conf.render.viewParams = arrParameters;
+					$.conf.viewParams = arrParameters;
 					//arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
 
 					if(!$.isEmpty(arrParameters['view']) && strReference in arrData && arrData[strReference].length){
@@ -678,38 +665,22 @@
 			addRoute: addRoute
 		};
 
-		//Ensure we have empty arrays for key defaults
-		$.conf.router.transition = $.conf.router.transition || 'default';
-		$.conf.router.meta = $.conf.router.meta || [];
-		$.conf.router.domains = $.conf.router.domains || [];
-		$.conf.router.routes = $.conf.router.routes || [];
+		let defaultMeta = [
+			{ charset: "UTF-8" },
+			{ name: "viewport", content: "width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" },
+			{ "http-equiv": "X-UA-Compatible", content: "ie=edge" }
+		];
 
-		//Merge the defaults, options an new data, we are doing a multi-level merge here
-		$.conf.router = {
-			transition: $.conf.router.transition,
-			domains: $.conf.router.domains,
-			meta: {
-				...[
-					{ charset: "UTF-8" },
-					{ name: "viewport", content: "width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" },
-					{ "http-equiv": "X-UA-Compatible", content: "ie=edge" },
-				],
-				...$.conf.router.meta
-			},
-			routes: {
-				...{
-					"404": {
-						title: 'Page Not Found',
-						template: '404.tpl'
-					},
-					"403": {
-						title: 'Permission Denied',
-						template: '403.tpl'
-					}
-				},
-				...$.conf.router.routes
-			}
-		}
+		let defaultRoutes = {
+			"404": { title: 'Page Not Found', template: '404.tpl' },
+			"403": { title: 'Permission Denied', template: '403.tpl' }
+		};
+
+		//Merge in the default configs with any custom that have been set on startup
+		$.conf.transition = $.conf.transition || 'default';
+		$.conf.meta = {...defaultMeta,...$.conf.meta} || defaultMeta;
+		$.conf.domains = $.conf.domains || [];
+		$.conf.routes = {...defaultRoutes,...$.conf.routes} || defaultRoutes;
 
 		registerListeners();
 
@@ -721,24 +692,24 @@
 			})
 
 			//Add the default/site wide meta tags to the header
-			generateMetaData($.conf.router.meta,false);
+			generateMetaData($.conf.meta,false);
 
 			//Render the landing page
 			renderPage(window.location.pathname);
 		}
 
 		function addRoute(path,route){
-			$.conf.router.routes[path] = route;
+			$.conf.routes[path] = route;
 			$.func.hooks.fire('router_add_route',[ path, route ]);
 		}
 
 		function renderPage(path){
 
 			//Set the default page as 404, use "var" so that we can pass by REF in the hooks
-			var routerCurrent = $.conf.router.routes['404'];
+			var routerCurrent = $.conf.routes['404'];
 
-			if(path in $.conf.router.routes){
-				routerCurrent = $.conf.router.routes[path];
+			if(path in $.conf.routes){
+				routerCurrent = $.conf.routes[path];
 			}
 
 			//Ensure that all the defaults are configured
@@ -818,7 +789,7 @@
 
 		function pushState(urlPath, pageTitle, pageBody, pageInfo){
 
-			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, pageInfo ],$.conf.router.transition);
+			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, pageInfo ],$.conf.transition);
 
 			document.title = pageTitle;
 			renderPageHead(pageInfo);
@@ -851,7 +822,7 @@
 
 				if(url){
 					let urlData = $.parseUri(url);
-					if(url && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.router.domains))){
+					if(url && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains))){
 						e.preventDefault();
 						renderPage(urlData.pathname);
 					}
