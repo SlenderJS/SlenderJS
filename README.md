@@ -29,7 +29,7 @@ Registering a HTML page template this can be done using the below comment.
 
 ```
 SlenderJS.render.addTemplate('/page.tpl',
-    '<h1>{data:title}</h1><p>{data:body}</p>'
+    `<h1>{data:title}</h1><p>{data:body}</p>`
 );
 ```
 
