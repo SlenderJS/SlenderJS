@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.1.1
+ * @version		1.2.0
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -74,7 +74,7 @@
 
 		//Merge the defaults, options an new data
 		$.conf.hooks = $.conf.hooks || [];
-		
+
 		function all(library){
 			return (library in $.conf.hooks) ? $.conf.hooks[library] : [];
 		}
@@ -136,7 +136,8 @@
 		$.func.render = {
 			build: build,
 			buildRaw: buildRaw,
-			addTemplate: addTemplate
+			addTemplate: addTemplate,
+			isTemplate: isTemplate
 		};
 
 		//Merge in the default configs with any custom that have been set on startup
@@ -144,7 +145,7 @@
 		$.conf.viewParams = $.conf.viewParams || [];
 		$.conf.currentTag = $.conf.currentTag || null;
 		$.conf.currentTemplate = $.conf.currentTemplate || null;
-		
+
 		function build(template,templateData){
 
 			let rawHTML = 'Error: Template "'+template+'" not found';
@@ -186,6 +187,10 @@
 		function addTemplate(strTemplateName,strHTML){
 			$.conf.templates[strTemplateName] = strHTML;
 			$.func.hooks.fire('render_add_template',[ strTemplateName, strHTML ]);
+		}
+
+		function isTemplate(template){
+			return (template in $.conf.templates);
 		}
 
 		function getTags(template){
@@ -452,8 +457,7 @@
 
 				if(strKey.includes('/')){
 
-					let mxdTempData = '';
-					//$mxdTempData = \Twist::framework()->tools()->arrayParse($strKey,$arrData);
+					let mxdTempData = $.arrayParse(strKey,arrData);
 
 					result.status = !$.isEmpty(mxdTempData);
 					result.return = (typeof(arrData[strKey]) == 'object' && blReturnArray === false) ? JSON.stringify(mxdTempData, null, 4) : mxdTempData;
@@ -662,7 +666,8 @@
 		$.func.router = {
 			start: start,
 			page: renderPage,
-			addRoute: addRoute
+			addRoute: addRoute,
+			addRedirect: addRedirect
 		};
 
 		let defaultMeta = [
@@ -703,6 +708,11 @@
 			$.func.hooks.fire('router_add_route',[ path, route ]);
 		}
 
+		function addRedirect(path, redirectUrl){
+			$.conf.routes[path] = {redirect:redirectUrl};
+			$.func.hooks.fire('router_add_redirect',[ path, redirectUrl ]);
+		}
+
 		function renderPage(path){
 
 			//Set the default page as 404, use "var" so that we can pass by REF in the hooks
@@ -710,6 +720,11 @@
 
 			if(path in $.conf.routes){
 				routerCurrent = $.conf.routes[path];
+			}
+
+			if('redirect' in routerCurrent){
+				window.location.href = routerCurrent.redirect;
+				return true;
 			}
 
 			//Ensure that all the defaults are configured
@@ -848,6 +863,16 @@
 
 		$.inArray = function(item,arrData){
 			return (arrData.length && arrData.indexOf(item) > -1);
+		}
+
+		$.arrayParse = function(key, arrData, splitChar){
+			splitChar = splitChar || '/';
+			let arrParts = key.split(splitChar);
+			key = arrParts.splice(0,1);
+			if(typeof arrParts === 'object' && key in arrData){
+				return (arrParts.length) ? arrayParse(arrParts.join(splitChar),arrData[key],splitChar) : arrData[key];
+			}
+			return null;
 		}
 
 		$.isEmpty = function(val){
