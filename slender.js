@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.2.0
+ * @version		1.2.1
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -391,7 +391,7 @@
 				case'view':
 
 					$.conf.viewParams = arrParameters;
-					arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
+					arrData = typeof(arrData) == 'object' ? {...arrData,...arrParameters} : arrParameters;
 
 					//Template is relative to current template
 					if(strReference.startsWith('./')){
@@ -870,7 +870,7 @@
 			let arrParts = key.split(splitChar);
 			key = arrParts.splice(0,1);
 			if(typeof arrParts === 'object' && key in arrData){
-				return (arrParts.length) ? arrayParse(arrParts.join(splitChar),arrData[key],splitChar) : arrData[key];
+				return (arrParts.length) ? this.arrayParse(arrParts.join(splitChar),arrData[key],splitChar) : arrData[key];
 			}
 			return null;
 		}
