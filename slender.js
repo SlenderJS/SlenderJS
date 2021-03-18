@@ -684,20 +684,19 @@
 		//Merge in the default configs with any custom that have been set on startup
 		$.conf.transition = $.conf.transition || 'default';
 		$.conf.meta = {...defaultMeta,...$.conf.meta} || defaultMeta;
+		$.conf.script = $.conf.script || [];
+		$.conf.link = $.conf.link || [];
 		$.conf.domains = $.conf.domains || [];
 		$.conf.routes = {...defaultRoutes,...$.conf.routes} || defaultRoutes;
 
+		registerHooks();
 		registerListeners();
 
 		function start(){
-
-			//Register the default page transition (Switch directly to the page, no animation)
-			$.func.hooks.register('router_page_transition','default',function(urlPath, pageTitle, pageBody, pageInfo){
-				this.app.innerHTML = pageBody;
-			})
-
-			//Add the default/site wide meta tags to the header
-			generateMetaData($.conf.meta,false);
+			//Add the default/site wide head tags
+			generateHeadTags('meta',$.conf.meta,false);
+			generateHeadTags('script',$.conf.script,false);
+			generateHeadTags('link',$.conf.link,false);
 
 			//Render the landing page
 			renderPage(window.location.pathname);
@@ -760,7 +759,9 @@
 			let metaTitle = document.querySelector('head title');
 			metaTitle.innerHTML = pageInfo.title;
 
-			generateMetaData(pageInfo.meta,true);
+			generateHeadTags('meta',pageInfo.meta,true);
+			generateHeadTags('script',pageInfo.script,true);
+			generateHeadTags('link',pageInfo.link,true);
 
 			//Fire the render page body hooks
 			$.func.hooks.fire('router_page_head',[ pageInfo ]);
@@ -768,33 +769,33 @@
 			return '';
 		}
 
-		function generateMetaData(meta,blRemovableMeta){
+		function generateHeadTags(type,items,blPageItem){
 
-			meta = meta || [];
-			blRemovableMeta = blRemovableMeta || false;
+			items = items || [];
+			blPageItem = blPageItem || false;
 
-			if(blRemovableMeta){
+			if(blPageItem){
 				//Remove all meta data associated with last page
-				document.querySelectorAll('[data-smart-meta]').forEach(function(elm,index){
+				document.querySelectorAll('[data-slender-'+type+']').forEach(function(elm,index){
 					elm.remove();
 				})
 			}
 
-			if(meta.length){
+			if(items.length){
 
-				//Removable meta goes after title, static meta goes before title
-				let metaInsertBeforeElement = (blRemovableMeta) ? document.querySelector('head title').nextSibling : document.querySelector('head title');
+				//Removable tags goes after title, static tags goes before title
+				let metaInsertBeforeElement = (blPageItem) ? document.querySelector('head title').nextSibling : document.querySelector('head title');
 
-				//Go though all the meta tags and generate/add them
-				for(let i = 0; i < meta.length; i++){
+				//Go though all the tags and generate/add them
+				for(let i = 0; i < items.length; i++){
 
-					let tag = document.createElement('meta');
-					Object.keys(meta[i]).forEach(key => {
-						tag.setAttribute(key, meta[i][key]);
+					let tag = document.createElement(type);
+					Object.keys(items[i]).forEach(key => {
+						tag.setAttribute(key, items[i][key]);
 					});
 
-					if(blRemovableMeta){
-						tag.setAttribute('data-smart-meta', '');
+					if(blPageItem){
+						tag.setAttribute('data-slender-'+type, '');
 					}
 
 					document.querySelector('head').insertBefore(tag, metaInsertBeforeElement);
@@ -814,6 +815,14 @@
 				"pageTitle":pageTitle,
 				"pageInfo":pageInfo,
 			},pageTitle, urlPath);
+		}
+
+		function registerHooks(){
+
+			//Register the default page transition (Switch directly to the page, no animation)
+			$.func.hooks.register('router_page_transition','default',function(urlPath, pageTitle, pageBody, pageInfo){
+				this.app.innerHTML = pageBody;
+			});
 		}
 
 		function registerListeners(){
@@ -909,7 +918,6 @@
 		$.parseUri = function(url){
 
 			var result = {};
-
 			var anchor = document.createElement('a');
 			anchor.href = url;
 
