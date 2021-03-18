@@ -76,6 +76,14 @@ Routing using virtual paths will require the use of .htaccess or equivalent depe
 </IfModule>
 ```
 
+### Adding Redirect
+
+Adding a redirect is simple. All you need is one line of code which is below. The first parameter is the path you want the redirect to happen on, the second parameter is where you want the redirect to go.
+
+```
+SlenderJS.router.addRedirect('/home','https://example.com');
+```
+
 ### Rendering a Template
 
 Using the templating system without routing or for another purpose can be achived using the below code.
