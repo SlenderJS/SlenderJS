@@ -8,65 +8,68 @@
     <title>SlenderJS Demo</title>
 </head>
 <body>
+    <noscript>
+        <strong>We're sorry but this website doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
+    </noscript>
+    <div id="app"></div>
+    <script src="https://raw.githack.com/TwistPHP/SlenderJS/master/slender.js" type="text/javascript"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded',function(){
 
-<noscript>
-    <strong>We're sorry but this website doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
-</noscript>
-<div id="app"></div>
-<script src="https://raw.githack.com/TwistPHP/SlenderJS/master/slender.js" type="text/javascript"></script>
-<script>
-    document.addEventListener('DOMContentLoaded',function(){
+            new SlenderJS({ transition: "fade" });
 
-    	new SlenderJS({});
+            // adding the template to be used for the routes below.
+            SlenderJS.render.addTemplate('/page.tpl',
+                `{view:/menu.tpl} <h1>{data:title}</h1><p>{data:body}</p><ul>{repeater:list,view=/li.tpl}</ul>`
+            );
 
-    	// adding the template to be used for the routes below.
-		SlenderJS.render.addTemplate('/page.tpl',
-			`{view:/menu.tpl} <h1>{data:title}</h1><p>{data:body}</p><ul>{repeater:list,view=/li.tpl}</ul>`
-		);
+            SlenderJS.render.addTemplate('/menu.tpl',
+                `<a href="/">Home page</a> | <a href="/second/page">My Second Page</a>`
+            );
 
-		SlenderJS.render.addTemplate('/menu.tpl',
-			`<a href="/">Home page</a> | <a href="/second/page">My Second Page</a>`
-		);
+            SlenderJS.render.addTemplate('/li.tpl',
+                `<li>{data:text}</li>`
+            );
 
-		SlenderJS.render.addTemplate('/li.tpl',
-			`<li>{data:text}</li>`
-		);
-
-    	// adding the page routes
-		SlenderJS.router.addRoute('/',{
-			title:'My Home Page',
-			template:'/page.tpl',
-			data:{
-				title:'Welcome to my Home Page',
-				body:'Have a look around my example page!',
-                list: [
-                    {
-                    	text: 'item-1'
-                    },
-					{
-						text: 'item-2'
-					},
+            // adding the page routes
+            SlenderJS.router.addRoute('/',{
+                title:'My Home Page',
+                template:'/page.tpl',
+                data: {
+                    title: 'Welcome to my Home Page',
+                    body: 'Have a look around my example page!',
+                    list: [
+                        { text: 'item-1' },
+                        { text: 'item-2' }
+                    ]
+                },
+                meta: [
+                    { name: "description", content: "This is my page description" },
+                    { name: "author", content: "SlenderJS" }
                 ]
-			}
-		});
+            });
 
-		SlenderJS.router.addRoute('/second/page',{
-			title:'My Secound Page',
-			template:'/page.tpl',
-			data:{
-				title:'A Secound Page',
-				body:'Some more info on my secound page!'
-			}
-		});
+            SlenderJS.router.addRoute('/second/page',{
+                title: 'My Second Page',
+                template: '/page.tpl',
+                data: {
+                    title: 'A Second Page',
+                    body: 'Some more info on my second page!'
+                },
+                meta: [
+                    { name:"description", content: "This is my second page description" },
+                    { name:"author", content: "SlenderJS" }
+                ]
+            });
 
-		// set up redirect first example to outbound site
-		SlenderJS.router.addRedirect('/google','https://google.com');
-		// second is internal redirect
-		SlenderJS.router.addRedirect('/second','/second/page');
+            // set up redirect first example to outbound site
+            SlenderJS.router.addRedirect('/google','https://google.com');
 
-		SlenderJS.router.start();
-    });
-</script>
+            // second is internal redirect
+            SlenderJS.router.addRedirect('/second','/second/page');
+
+            SlenderJS.router.start();
+        });
+    </script>
 </body>
-
 </html>

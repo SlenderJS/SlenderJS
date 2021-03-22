@@ -20,6 +20,9 @@ Enjoy!
 
 Minified with: https://skalman.github.io/UglifyJS-online/
 
+## Example Code
+
+We have put together some [Example Code](https://github.com/TwistPHP/SlenderJS/tree/main/example), the code in the example closely follows our [Usage Guide](https://github.com/TwistPHP/SlenderJS#usage-guide). There is more information and code examples in the usages guide so be sure to read over it before you get start.
 
 ## Usage Guide
 
@@ -76,6 +79,41 @@ Routing using virtual paths will require the use of .htaccess or equivalent depe
 </IfModule>
 ```
 
+### Page Specific Head Tags (Meta, Script, Style and Link)
+
+You can set page specific meta tags as well as including scripts and style-sheets that will only be loaded on the current page.
+To do this simply add the following details for each tag into the `addRoute()` function call as per below.
+
+```
+SlenderJS.router.addRoute('/',{
+    title:'My Home Page',
+    template:'/page.tpl',
+    data:{
+        title:'Welcome to my Home Page',
+        body:'Have a look around my example page! Check out <a href="/second/page">My Second Page</a>'
+    },
+    meta:[
+        {name:"description",content:"This is my page description"},
+        {name:"author",content:"SlenderJS"}
+    ]
+});
+```
+An example of adding some other types of tags can be seem below:
+
+```
+meta:[
+    {name:"description",content:"This is my page description"},
+    {name:"author",content:"SlenderJS"}
+],
+script:[
+    {contents:`alert('Hello World!');`},
+    {src:"https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"},
+],
+link:[
+    {href:"https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"},
+]
+```
+
 ### Adding Redirect
 
 Adding a redirect is simple. All you need is one line of code which is below. The first parameter is the path you want the redirect to happen on, the second parameter is where you want the redirect to go.
@@ -104,6 +142,39 @@ let renderedHTML = SlenderJS.render.buildRaw('<div id="{data:id}">{data:content}
 });
 ```
 
-### Coming Soon
+### Choose a Page Transition
 
-More documentation needs to be added here on how to expand the system with hooks, register multiple templates and routes at once as well as setting up page transitions.
+SlenderJS supports page transitions, the 'default' transition is to swap the old page for the new page, not animation, just plain and simple. We have included another option 'fade' which will fade out the old page and then fade in the new page.
+To choose a page transition set the transition option when generating the SlenderJS instance.
+
+`new SlenderJS({ transition: 'fade' });`
+
+### Creating a Page Transition
+
+You can also create your own page transitions, each transition should be registered under the 'router_page_transition' hook with a unique name.
+For this example we are going to adapt a copy of the default fade transition making to take twice as long to animate. Copy the below code and set your transition to be `slowfade` to give it a try!
+
+```
+SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, pageTitle, pageBody, pageInfo){
+
+    this.priv.router.createPageContainer(urlPath,pageBody);
+    this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
+
+    //Do the animation (in this case, straight swap)
+    this.currentPage.style.opacity = '1';
+    this.currentPage.style.transition = 'opacity 1s linear';
+
+    this.nextPage.style.opacity = '0';
+    this.nextPage.style.transition = 'opacity 1s linear 1s';
+    this.nextPage.classList.remove('slenderPageNext','slenderPageHidden');
+    this.nextPage.classList.add('slenderPageCurrent','slenderFadeIn');
+    this.currentPage.classList.add('slenderFadeOut');
+
+    setTimeout(function($){ $.currentPage.remove(); }, 990, this);
+    setTimeout(function($){ $.currentPage = $.nextPage; $.nextPage = null; }, 1010, this);
+});
+```
+
+## Contributions & Support
+
+This is an open-source library, if you find any bugs or have any suggestions please log an issue or create a pull request with your changes, We welcome your support!

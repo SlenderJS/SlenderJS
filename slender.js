@@ -44,8 +44,11 @@
 
 		this.func = {};
 		this.func.data = this.data;
+		this.priv = {};
 
-		this.app = document.querySelector('#app');
+		this.app = document.querySelector('#app') || null;
+		this.currentPage = document.querySelector('#app .slenderPage.slenderPageCurrent') || null;
+		this.nextPage = document.querySelector('#app .slenderPage.slenderPageNext') || null;
 
 		new SlenderHooks(this);
 		new SlenderRender(this);
@@ -670,6 +673,16 @@
 			addRedirect: addRedirect
 		};
 
+		//Set all the functions that are privately accessible (Via ThirdParty registered Hooks)
+		$.priv.router = {
+			start: start,
+			page: renderPage,
+			addRoute: addRoute,
+			addRedirect: addRedirect,
+			generateHeadTags: generateHeadTags,
+			createPageContainer: createPageContainer,
+		};
+
 		let defaultMeta = [
 			{ charset: "UTF-8" },
 			{ name: "viewport", content: "width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" },
@@ -697,6 +710,14 @@
 			generateHeadTags('meta',$.conf.meta,false);
 			generateHeadTags('script',$.conf.script,false);
 			generateHeadTags('link',$.conf.link,false);
+
+			if(!$.currentPage){
+				$.app.innerHTML = '<div class="slenderPage slenderPageCurrent"></div>';
+				$.currentPage = $.app.querySelector('.slenderPage.slenderPageCurrent');
+			}
+
+			//Add a class to hide a page by default when it is first loaded in
+			generateHeadTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
 
 			//Render the landing page
 			renderPage(window.location.pathname);
@@ -791,7 +812,11 @@
 
 					let tag = document.createElement(type);
 					Object.keys(items[i]).forEach(key => {
-						tag.setAttribute(key, items[i][key]);
+						if(key === 'contents'){
+							tag.innerHTML = items[i][key];
+						}else{
+							tag.setAttribute(key, items[i][key]);
+						}
 					});
 
 					if(blPageItem){
@@ -801,6 +826,20 @@
 					document.querySelector('head').insertBefore(tag, metaInsertBeforeElement);
 				}
 			}
+		}
+
+		function createPageContainer(urlPath,pageBody){
+
+			//Create the new page
+			let nextPage = document.createElement("div");
+			nextPage.classList.add('slenderPage','slenderPageNext','slenderPageHidden');
+			nextPage.setAttribute('data-path',urlPath);
+			nextPage.innerHTML = pageBody;
+
+			//Insert the page into the app
+			//$.app.insertBefore(nextPage, $.app.firstChild);
+			$.app.appendChild(nextPage);
+			$.nextPage = $.app.querySelector('.slenderPage.slenderPageNext');
 		}
 
 		function pushState(urlPath, pageTitle, pageBody, pageInfo){
@@ -821,7 +860,35 @@
 
 			//Register the default page transition (Switch directly to the page, no animation)
 			$.func.hooks.register('router_page_transition','default',function(urlPath, pageTitle, pageBody, pageInfo){
-				this.app.innerHTML = pageBody;
+
+				this.priv.router.createPageContainer(urlPath,pageBody);
+
+				//Do the animation (in this case, straight swap)
+				this.currentPage.remove();
+				this.nextPage.classList.remove('slenderPageNext','slenderPageHidden');
+				this.nextPage.classList.add('slenderPageCurrent');
+				this.currentPage = this.nextPage;
+				this.nextPage = null;
+			});
+
+			//Register the default page transition (Switch directly to the page, no animation)
+			$.func.hooks.register('router_page_transition','fade',function(urlPath, pageTitle, pageBody, pageInfo){
+
+				this.priv.router.createPageContainer(urlPath,pageBody);
+				this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
+
+				//Do the animation (in this case, straight swap)
+				this.currentPage.style.opacity = '1';
+				this.currentPage.style.transition = 'opacity 0.5s';
+
+				this.nextPage.style.opacity = '0';
+				this.nextPage.style.transition = 'opacity 0.5s ease-in-out 0.5s';
+				this.nextPage.classList.remove('slenderPageNext','slenderPageHidden');
+				this.nextPage.classList.add('slenderPageCurrent','slenderFadeIn');
+				this.currentPage.classList.add('slenderFadeOut');
+
+				setTimeout(function($){ $.currentPage.remove(); }, 490, this);
+				setTimeout(function($){ $.currentPage = $.nextPage; $.nextPage = null; }, 510, this);
 			});
 		}
 
