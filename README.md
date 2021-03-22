@@ -160,12 +160,13 @@ SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, p
     this.priv.router.createPageContainer(urlPath,pageBody);
     this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
 
-    //Do the animation (in this case, straight swap)
+    //Set the opacity filters (1s out, 1s in)
     this.currentPage.style.opacity = '1';
     this.currentPage.style.transition = 'opacity 1s linear';
-
     this.nextPage.style.opacity = '0';
     this.nextPage.style.transition = 'opacity 1s linear 1s';
+    
+    //Start the animation
     this.nextPage.classList.remove('slenderPageNext','slenderPageHidden');
     this.nextPage.classList.add('slenderPageCurrent','slenderFadeIn');
     this.currentPage.classList.add('slenderFadeOut');

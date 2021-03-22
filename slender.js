@@ -858,7 +858,7 @@
 
 		function registerHooks(){
 
-			//Register the default page transition (Switch directly to the page, no animation)
+			//Register the default page transition (Direct switch, no animation)
 			$.func.hooks.register('router_page_transition','default',function(urlPath, pageTitle, pageBody, pageInfo){
 
 				this.priv.router.createPageContainer(urlPath,pageBody);
@@ -871,18 +871,19 @@
 				this.nextPage = null;
 			});
 
-			//Register the default page transition (Switch directly to the page, no animation)
+			//Register the fade page transition
 			$.func.hooks.register('router_page_transition','fade',function(urlPath, pageTitle, pageBody, pageInfo){
 
 				this.priv.router.createPageContainer(urlPath,pageBody);
 				this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
 
-				//Do the animation (in this case, straight swap)
+				//Set the opacity filters (0.5s out, 0.5s in)
 				this.currentPage.style.opacity = '1';
 				this.currentPage.style.transition = 'opacity 0.5s';
-
 				this.nextPage.style.opacity = '0';
 				this.nextPage.style.transition = 'opacity 0.5s ease-in-out 0.5s';
+
+				//Start the animation
 				this.nextPage.classList.remove('slenderPageNext','slenderPageHidden');
 				this.nextPage.classList.add('slenderPageCurrent','slenderFadeIn');
 				this.currentPage.classList.add('slenderFadeOut');
