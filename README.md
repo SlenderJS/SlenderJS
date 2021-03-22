@@ -30,7 +30,7 @@ We have put together some [Example Code](https://github.com/TwistPHP/SlenderJS/t
 
 Registering a HTML page template this can be done using the below comment.
 
-```
+```javascript
 SlenderJS.render.addTemplate('/page.tpl',
     `<h1>{data:title}</h1><p>{data:body}</p>`
 );
@@ -42,7 +42,7 @@ For more information about templating please see the TwistPHP template example d
 
 Registering a Page URL with some data that will be processed when the users visit the page
 
-```
+```javascript
 SlenderJS.router.addRoute('/',{
     title:'My Home Page',
     template:'/page.tpl',
@@ -68,7 +68,7 @@ When using routing you will need to have an `<div id="app"></div>` in your page 
 
 Routing using virtual paths will require the use of .htaccess or equivalent depending on your server setup. Place the following code in your htaccess file.
 
-```
+```htaccess
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
@@ -84,7 +84,7 @@ Routing using virtual paths will require the use of .htaccess or equivalent depe
 You can set page specific meta tags as well as including scripts and style-sheets that will only be loaded on the current page.
 To do this simply add the following details for each tag into the `addRoute()` function call as per below.
 
-```
+```javascript
 SlenderJS.router.addRoute('/',{
     title:'My Home Page',
     template:'/page.tpl',
@@ -118,7 +118,7 @@ link:[
 
 Adding a redirect is simple. All you need is one line of code which is below. The first parameter is the path you want the redirect to happen on, the second parameter is where you want the redirect to go.
 
-```
+```javascript
 SlenderJS.router.addRedirect('/home','https://example.com');
 ```
 
@@ -126,7 +126,7 @@ SlenderJS.router.addRedirect('/home','https://example.com');
 
 Using the templating system without routing or for another purpose can be achived using the below code.
 
-```
+```javascript
 let renderedHTML = SlenderJS.render.build('/page.tpl',{
     title:'Example Title Text',
     body:'Example body text'
@@ -135,7 +135,7 @@ let renderedHTML = SlenderJS.render.build('/page.tpl',{
 
 Alternatively if you have a small bit of HTML you would like to render you can also do:
 
-```
+```javascript
 let renderedHTML = SlenderJS.render.buildRaw('<div id="{data:id}">{data:content}</div>',{
     id:'MyDiv1',
     content:'<p>Some Example Content</p>'
@@ -154,7 +154,7 @@ To choose a page transition set the transition option when generating the Slende
 You can also create your own page transitions, each transition should be registered under the 'router_page_transition' hook with a unique name.
 For this example we are going to adapt a copy of the default fade transition making to take twice as long to animate. Copy the below code and set your transition to be `slowfade` to give it a try!
 
-```
+```javascript
 SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, pageTitle, pageBody, pageInfo){
 
     this.priv.router.createPageContainer(urlPath,pageBody);
@@ -175,6 +175,25 @@ SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, p
     setTimeout(function($){ $.currentPage = $.nextPage; $.nextPage = null; }, 1010, this);
 });
 ```
+
+### Available Hooks
+
+Hooks allow you to extend the SlenderJS library to add in new functionality without needing edit the code directly, you can create your own plugins or add support for other JS libraries.
+Let us know if you have written a plugin or expansion that you wish to share with the community! 
+
+| Hook Group                | Area      | Params | Purpose       |
+| ------------------------- | --------- | ------ | ------------- |
+| render_add_template       | Render    | 2     | A template is added to your instance
+| render_tags               | Render    | 0/4 ** | Adds support for a new template tag i.e. a unique key of 'test' will add support for the template tag `{test:somthing}`
+| router_add_route          | Router    | 2      | A route has is added to your instance
+| router_add_redirect       | Router    | 2      | A redirect is added to your instance
+| router_render_page        | Router    | 4      | Fired before the requested page is processed
+| router_page_body          | Router    | 4      | Fired before the requested page body is processed
+| router_page_head          | Router    | 4      | Fired before the requested page head is processed
+| router_page_transition    | Router    | 4      | Handles the transition between pages, only one specific hook from this group will be fired upon page load `option: transition`.
+| router_page_ready         | Router    | 1      | Fires after a page transition has been complete and the page is showing to the user
+
+** Tags can be used as a function or by passing in an array of data
 
 ## Contributions & Support
 
