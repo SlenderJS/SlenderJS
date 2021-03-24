@@ -707,7 +707,9 @@
 		registerHooks();
 		registerListeners();
 
-		function start(){
+		function start(blDOMContentLoaded){
+
+			let blWaitForDOM = blDOMContentLoaded || false
 
 			//Add the default/site wide head tags
 			generateTags('meta',$.conf.meta,false);
@@ -723,8 +725,17 @@
 			//Add a class to hide a page by default when it is first loaded in
 			generateTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
 
-			//Render the landing page
-			page(window.location.pathname);
+			if(blWaitForDOM){
+				$.data.isLoadedInterval = setInterval(function($){
+					if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
+						clearInterval($.data.isLoadedInterval);
+						$.func.router.page(window.location.pathname);
+					}
+				},200,$);
+			}else{
+				//Render the landing page
+				page(window.location.pathname);
+			}
 		}
 
 		function addRoute(path,route){
