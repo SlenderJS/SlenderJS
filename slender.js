@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.2.2
+ * @version		1.3.0
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -668,7 +668,7 @@
 		//Set all the functions that are publicly accessible
 		$.func.router = {
 			start: start,
-			page: renderPage,
+			page: page,
 			addRoute: addRoute,
 			addRedirect: addRedirect
 		};
@@ -676,10 +676,11 @@
 		//Set all the functions that are privately accessible (Via ThirdParty registered Hooks)
 		$.priv.router = {
 			start: start,
-			page: renderPage,
+			page: page,
+			pageReady: pageReady,
 			addRoute: addRoute,
 			addRedirect: addRedirect,
-			generateHeadTags: generateHeadTags,
+			generateTags: generateTags,
 			createPageContainer: createPageContainer,
 		};
 
@@ -699,6 +700,7 @@
 		$.conf.meta = {...defaultMeta,...$.conf.meta} || defaultMeta;
 		$.conf.script = $.conf.script || [];
 		$.conf.link = $.conf.link || [];
+		$.conf.style = $.conf.style || [];
 		$.conf.domains = $.conf.domains || [];
 		$.conf.routes = {...defaultRoutes,...$.conf.routes} || defaultRoutes;
 
@@ -707,9 +709,10 @@
 
 		function start(){
 			//Add the default/site wide head tags
-			generateHeadTags('meta',$.conf.meta,false);
-			generateHeadTags('script',$.conf.script,false);
-			generateHeadTags('link',$.conf.link,false);
+			generateTags('meta',$.conf.meta,false);
+			generateTags('style',$.conf.style,false);
+			generateTags('script',$.conf.script,false);
+			generateTags('link',$.conf.link,false);
 
 			if(!$.currentPage){
 				$.app.innerHTML = '<div class="slenderPage slenderPageCurrent"></div>';
@@ -717,10 +720,10 @@
 			}
 
 			//Add a class to hide a page by default when it is first loaded in
-			generateHeadTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
+			generateTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
 
 			//Render the landing page
-			renderPage(window.location.pathname);
+			page(window.location.pathname);
 		}
 
 		function addRoute(path,route){
@@ -733,14 +736,10 @@
 			$.func.hooks.fire('router_add_redirect',[ path, redirectUrl ]);
 		}
 
-		function renderPage(path){
+		function page(path){
 
 			//Set the default page as 404, use "var" so that we can pass by REF in the hooks
-			var routerCurrent = $.conf.routes['404'];
-
-			if(path in $.conf.routes){
-				routerCurrent = $.conf.routes[path];
-			}
+			var routerCurrent = (path in $.conf.routes) ? $.conf.routes[path] : $.conf.routes['404'];
 
 			if('redirect' in routerCurrent){
 				window.location.href = routerCurrent.redirect;
@@ -755,18 +754,18 @@
 			routerCurrent.preventLoad = false;
 
 			//Fire the render page hooks
-			$.func.hooks.fire('router_render_page',[ path, routerCurrent ]);
+			$.func.hooks.fire('router_page',[ path, routerCurrent ]);
 
 			if(!routerCurrent.preventLoad){
 				//Render the page and header, display the page using push states
-				pushState(path,routerCurrent.title,renderPageBody(path, routerCurrent),routerCurrent);
+				pushState(path,routerCurrent.title,pageBody(path, routerCurrent),routerCurrent);
 			}
 
 			//Reset the value
 			routerCurrent.preventLoad = false;
 		}
 
-		function renderPageBody(path, route){
+		function pageBody(path, route){
 
 			//Fire the render page body hooks
 			$.func.hooks.fire('router_page_body',[ path, route ]);
@@ -774,15 +773,19 @@
 			return $.func.render.build(route.template,route.data);
 		}
 
-		function renderPageHead(pageInfo){
+		function pageHead(pageInfo){
 
 			//Set the meta title
 			let metaTitle = document.querySelector('head title');
 			metaTitle.innerHTML = pageInfo.title;
 
-			generateHeadTags('meta',pageInfo.meta,true);
-			generateHeadTags('script',pageInfo.script,true);
-			generateHeadTags('link',pageInfo.link,true);
+			//Set the browser doc title
+			document.title = pageInfo.title;
+
+			generateTags('meta',pageInfo.meta,true);
+			generateTags('style',pageInfo.style,true);
+			generateTags('script',pageInfo.script,true);
+			generateTags('link',pageInfo.link,true);
 
 			//Fire the render page body hooks
 			$.func.hooks.fire('router_page_head',[ pageInfo ]);
@@ -790,14 +793,49 @@
 			return '';
 		}
 
-		function generateHeadTags(type,items,blPageItem){
+		function pageReady(){
 
+			let path = $.currentPage.getAttribute('data-path');
+			let route = (path in $.conf.routes) ? $.conf.routes[path] : $.conf.routes['404'];
+
+			pageHead(route);
+
+			//Remove all meta data associated with last page
+			document.querySelectorAll('[data-slender-livejs]').forEach(function(elm,index){
+				elm.remove();
+			});
+
+			let scriptTags = [];
+			let scripts = $.currentPage.querySelectorAll('script');
+			for(let i = 0; i < scripts.length; i++){
+				let newScript = {
+					'contents': (scripts[i].text || scripts[i].textContent || scripts[i].innerHTML || "" )
+				};
+				scriptTags.push(newScript);
+				scripts[i].remove();
+			}
+
+			generateTags('script',scriptTags,true,'livejs');
+
+			$.func.hooks.fire('router_page_ready',[ path, route ]);
+		}
+
+		function generateTags(type,items,blPageItem,dataKey){
+
+			let uniqueKey = !$.isEmpty(dataKey);
+
+			//Data key is optional, defaults to type
+			dataKey = dataKey || type;
 			items = items || [];
 			blPageItem = blPageItem || false;
 
+			if(!blPageItem && uniqueKey && document.querySelectorAll('[data-slender-'+dataKey+']').length){
+				return true;
+			}
+
 			if(blPageItem){
 				//Remove all meta data associated with last page
-				document.querySelectorAll('[data-slender-'+type+']').forEach(function(elm,index){
+				document.querySelectorAll('[data-slender-'+dataKey+']').forEach(function(elm,index){
 					elm.remove();
 				})
 			}
@@ -819,8 +857,9 @@
 						}
 					});
 
-					if(blPageItem){
-						tag.setAttribute('data-slender-'+type, '');
+					if(blPageItem || uniqueKey){
+						//Set an attribute so we know where the tag came from
+						tag.setAttribute('data-slender-'+dataKey, '');
 					}
 
 					document.querySelector('head').insertBefore(tag, metaInsertBeforeElement);
@@ -842,17 +881,14 @@
 			$.nextPage = $.app.querySelector('.slenderPage.slenderPageNext');
 		}
 
-		function pushState(urlPath, pageTitle, pageBody, pageInfo){
+		function pushState(urlPath, pageTitle, pageBody, route){
 
-			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, pageInfo ],$.conf.transition);
-
-			document.title = pageTitle;
-			renderPageHead(pageInfo);
+			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, route ],$.conf.transition);
 
 			window.history.pushState({
 				"pageBody":pageBody,
 				"pageTitle":pageTitle,
-				"pageInfo":pageInfo,
+				"pageInfo":route,
 			},pageTitle, urlPath);
 		}
 
@@ -869,13 +905,16 @@
 				this.nextPage.classList.add('slenderPageCurrent');
 				this.currentPage = this.nextPage;
 				this.nextPage = null;
+
+				//@important Page must be marked as ready!
+				this.priv.router.pageReady();
 			});
 
 			//Register the fade page transition
 			$.func.hooks.register('router_page_transition','fade',function(urlPath, pageTitle, pageBody, pageInfo){
 
 				this.priv.router.createPageContainer(urlPath,pageBody);
-				this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
+				this.priv.router.generateTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],false,'transitionFade');
 
 				//Set the opacity filters (0.5s out, 0.5s in)
 				this.currentPage.style.opacity = '1';
@@ -889,7 +928,12 @@
 				this.currentPage.classList.add('slenderFadeOut');
 
 				setTimeout(function($){ $.currentPage.remove(); }, 490, this);
-				setTimeout(function($){ $.currentPage = $.nextPage; $.nextPage = null; }, 510, this);
+				setTimeout(function($){
+					$.currentPage = $.nextPage;
+					$.nextPage = null;
+					//@important Page must be marked as ready!
+					$.priv.router.pageReady();
+				}, 510, this);
 			});
 		}
 
@@ -899,7 +943,7 @@
 				if(e.state){
 					document.title = e.state.pageTitle;
 					document.body.innerHTML = e.state.pageBody;
-					renderPageHead(e.state.pageInfo);
+					pageHead(e.state.pageInfo);
 				}
 			};
 
@@ -914,9 +958,9 @@
 
 				if(url){
 					let urlData = $.parseUri(url);
-					if(url && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains))){
+					if(url && !url.startsWith('#') && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains))){
 						e.preventDefault();
-						renderPage(urlData.pathname);
+						page(urlData.pathname);
 					}
 				}
 			});

@@ -158,7 +158,7 @@ For this example we are going to adapt a copy of the default fade transition mak
 SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, pageTitle, pageBody, pageInfo){
 
     this.priv.router.createPageContainer(urlPath,pageBody);
-    this.priv.router.generateHeadTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
+    this.priv.router.generateTags('style',[{contents: '.slenderFadeIn{opacity: 1!important;} .slenderFadeOut{opacity: 0!important;}'}],true);
 
     //Set the opacity filters (1s out, 1s in)
     this.currentPage.style.opacity = '1';
@@ -172,9 +172,16 @@ SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, p
     this.currentPage.classList.add('slenderFadeOut');
 
     setTimeout(function($){ $.currentPage.remove(); }, 990, this);
-    setTimeout(function($){ $.currentPage = $.nextPage; $.nextPage = null; }, 1010, this);
+    setTimeout(function($){
+    	$.currentPage = $.nextPage;
+    	$.nextPage = null;
+		//@important Page must be marked as ready!
+		$.priv.router.pageReady();
+	}, 1010, this);
 });
 ```
+
+⚠️ **Important**: you must call `$.priv.router.pageReady();` once your page has finished is transition process, using a timeout set to happen at the end of your transition is a good option
 
 ### Available Hooks
 
@@ -187,7 +194,7 @@ Let us know if you have written a plugin or expansion that you wish to share wit
 | render_tags               | Render    | 0/4 ** | Adds support for a new template tag i.e. a unique key of 'test' will add support for the template tag `{test:somthing}`
 | router_add_route          | Router    | 2      | A route has is added to your instance
 | router_add_redirect       | Router    | 2      | A redirect is added to your instance
-| router_render_page        | Router    | 4      | Fired before the requested page is processed
+| router_page               | Router    | 4      | Fired before the requested page is processed
 | router_page_body          | Router    | 4      | Fired before the requested page body is processed
 | router_page_head          | Router    | 4      | Fired before the requested page head is processed
 | router_page_transition    | Router    | 4      | Handles the transition between pages, only one specific hook from this group will be fired upon page load `option: transition`.
