@@ -1,5 +1,7 @@
 # SlenderJS
 
+![GitHub release](https://img.shields.io/github/release/TwistPHP/SlenderJS.svg)
+
 A JS library that can be a router for pages as well as rendering HTML templates on the client side. The library has been based upon the View and Route helpers from the TwistPHP framework and can process the TwistPHP View templates. Templating can be used on its own if routing is not required.
 
 Simple to use, expandable and light weight!
