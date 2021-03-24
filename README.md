@@ -190,17 +190,18 @@ SlenderJS.hooks.register('router_page_transition','slowfade',function(urlPath, p
 Hooks allow you to extend the SlenderJS library to add in new functionality without needing edit the code directly, you can create your own plugins or add support for other JS libraries.
 Let us know if you have written a plugin or expansion that you wish to share with the community! 
 
-| Hook Group                | Area      | Params | Purpose       |
-| ------------------------- | --------- | ------ | ------------- |
-| render_add_template       | Render    | 2     | A template is added to your instance
-| render_tags               | Render    | 0/4 ** | Adds support for a new template tag i.e. a unique key of 'test' will add support for the template tag `{test:somthing}`
-| router_add_route          | Router    | 2      | A route has is added to your instance
-| router_add_redirect       | Router    | 2      | A redirect is added to your instance
-| router_page               | Router    | 4      | Fired before the requested page is processed
-| router_page_body          | Router    | 4      | Fired before the requested page body is processed
-| router_page_head          | Router    | 4      | Fired before the requested page head is processed
-| router_page_transition    | Router    | 4      | Handles the transition between pages, only one specific hook from this group will be fired upon page load `option: transition`.
-| router_page_ready         | Router    | 1      | Fires after a page transition has been complete and the page is showing to the user
+| Hook Group                    | Area      | Params | Purpose       |
+| ----------------------------- | --------- | ------ | ------------- |
+| render_add_template           | Render    | 2      | A template is added to your instance
+| render_tags                   | Render    | 0/4 ** | Adds support for a new template tag i.e. a unique key of 'test' will add support for the template tag `{test:somthing}`
+| router_add_route              | Router    | 2      | A route has is added to your instance
+| router_add_redirect           | Router    | 2      | A redirect is added to your instance
+| router_page                   | Router    | 4      | Fired before the requested page is processed
+| router_page_body              | Router    | 4      | Fired before the requested page body is processed
+| router_page_head              | Router    | 4      | Fired before the requested page head is processed
+| router_page_transition        | Router    | 4      | Handles the transition between pages, only one specific hook from this group will be fired upon page load `option: transition`.
+| router_page_ready             | Router    | 1      | Fires after a page transition has been complete and the page is showing to the user
+| router_page_domcontentloaded  | Router    | 2      | Fires after a page transition has been complete and all included scripts and stylesheets have been loaded
 
 ** Tags can be used as a function or by passing in an array of data
 

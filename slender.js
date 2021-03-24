@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.3.0
+ * @version		1.3.1
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -708,6 +708,7 @@
 		registerListeners();
 
 		function start(){
+
 			//Add the default/site wide head tags
 			generateTags('meta',$.conf.meta,false);
 			generateTags('style',$.conf.style,false);
@@ -818,6 +819,18 @@
 			generateTags('script',scriptTags,true,'livejs');
 
 			$.func.hooks.fire('router_page_ready',[ path, route ]);
+
+			$.data.isLoadedInterval = setInterval(function($,path,route){
+				if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
+					clearInterval($.data.isLoadedInterval);
+					window.document.dispatchEvent(new Event("DOMContentLoaded", {
+						bubbles: true,
+						cancelable: true
+					}));
+					console.log('SlenderJS :: DOMContentLoaded');
+					$.func.hooks.fire('router_page_domcontentloaded',[ path, route ]);
+				}
+			},200,$,path,route);
 		}
 
 		function generateTags(type,items,blPageItem,dataKey){
@@ -860,6 +873,11 @@
 					if(blPageItem || uniqueKey){
 						//Set an attribute so we know where the tag came from
 						tag.setAttribute('data-slender-'+dataKey, '');
+					}
+
+					if('href' in items[i] || 'src' in items[i]){
+						tag.setAttribute('data-slender-loaded', '0');
+						tag.onload = function(e){ e.target.setAttribute('data-slender-loaded','1');}
 					}
 
 					document.querySelector('head').insertBefore(tag, metaInsertBeforeElement);
