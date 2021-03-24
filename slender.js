@@ -726,9 +726,11 @@
 			generateTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
 
 			if(blWaitForDOM){
+				console.log('Waiting for DOM to load ...');
 				$.data.isLoadedInterval = setInterval(function($){
 					if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
 						clearInterval($.data.isLoadedInterval);
+						console.log('Render Page ...');
 						$.func.router.page(window.location.pathname);
 					}
 				},200,$);
