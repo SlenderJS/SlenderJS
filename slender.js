@@ -712,9 +712,10 @@
 		registerHooks();
 		registerListeners();
 
-		function start(blDOMContentLoaded){
+		function start(blDOMContentLoaded,startPath){
 
 			let blWaitForDOM = blDOMContentLoaded || false
+			$.data.startPath = startPath || window.location.pathname
 
 			//Add the default/site wide head tags
 			generateTags('meta',$.conf.meta,false);
@@ -735,13 +736,13 @@
 				$.data.isLoadedInterval = setInterval(function($){
 					if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
 						clearInterval($.data.isLoadedInterval);
-						console.log('Render Page ...');
-						$.func.router.page(window.location.pathname);
+						console.log('Render Page ... ['+$.data.startPath+']');
+						$.func.router.page($.data.startPath);
 					}
 				},200,$);
 			}else{
 				//Render the landing page
-				page(window.location.pathname);
+				page($.data.startPath);
 			}
 		}
 
