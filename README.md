@@ -116,10 +116,10 @@ meta:[
 ],
 script:[
     {contents:`alert('Hello World!');`},
-    {src:"https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"},
+    {src:"https://example.com/example.js"},
 ],
 link:[
-    {href:"https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"},
+    {href:"https://example.com/example.css"},
 ]
 ```
 
