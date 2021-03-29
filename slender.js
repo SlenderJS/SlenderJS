@@ -143,8 +143,13 @@
 			isTemplate: isTemplate
 		};
 
+		let defaultTemplates = {
+			"/404.tpl": `<h1>Page not found!</h1>`,
+			"/403.tpl": `<h1>Forbidden!</h1>`
+		};
+
 		//Merge in the default configs with any custom that have been set on startup
-		$.conf.templates = $.conf.templates || [];
+		$.conf.templates = {...defaultTemplates,...$.conf.templates} || defaultTemplates;
 		$.conf.viewParams = $.conf.viewParams || [];
 		$.conf.currentTag = $.conf.currentTag || null;
 		$.conf.currentTemplate = $.conf.currentTemplate || null;
@@ -691,8 +696,8 @@
 		];
 
 		let defaultRoutes = {
-			"404": { title: 'Page Not Found', template: '404.tpl' },
-			"403": { title: 'Permission Denied', template: '403.tpl' }
+			"404": { title: 'Page Not Found', template: '/404.tpl' },
+			"403": { title: 'Permission Denied', template: '/403.tpl' }
 		};
 
 		//Merge in the default configs with any custom that have been set on startup
