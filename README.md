@@ -1,8 +1,8 @@
 # SlenderJS
 
-![GitHub release](https://img.shields.io/github/release/TwistPHP/SlenderJS.svg)
+![GitHub release](https://img.shields.io/github/release/SlenderJS/SlenderJS.svg)
 
-A JS library that can be a router for pages as well as rendering HTML templates on the client side. The library has been based upon the View and Route helpers from the TwistPHP framework and can process the TwistPHP View templates. Templating can be used on its own if routing is not required.
+A JS library that can be a router for pages as well as rendering HTML templates on the client side. The library has been based upon the View and Route helpers from the [TwistPHP Framework](https://github.com/TwistPHP/TwistPHP) and can process the TwistPHP View templates. Templating can be used on its own if routing is not required.
 
 Simple to use, expandable and light weight!
 
@@ -24,7 +24,7 @@ Minified with: https://skalman.github.io/UglifyJS-online/
 
 ## Example Code
 
-We have put together some [Example Code](https://github.com/TwistPHP/SlenderJS/tree/main/example), the code in the example closely follows our [Usage Guide](https://github.com/TwistPHP/SlenderJS#usage-guide). There is more information and code examples in the usages guide so be sure to read over it before you get start.
+We have put together some [Example Code](https://github.com/SlenderJS/SlenderJS/tree/main/example), the code in the example closely follows our [Usage Guide](https://github.com/TwistPHP/SlenderJS#usage-guide). There is more information and code examples in the usages guide so be sure to read over it before you get start.
 
 ## Usage Guide
 
