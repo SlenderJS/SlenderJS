@@ -68,6 +68,13 @@ When using routing you will need to have an `<div id="app"></div>` in your page 
 
 `SlenderJS.router.start();`
 
+`start()` has two optional parameters that can be passed though
+
+| Parameter                     | Type      | Purpose       |
+| ----------------------------- | --------- | ------------- |
+| blDOMContentLoaded            | Boolean   | true = Wait for all scripts and css to be loaded before processing the page (Default: false)
+| startPath                     | String    | An optional start path which will override the current browser path i.e /login could be shown
+
 Routing using virtual paths will require the use of .htaccess or equivalent depending on your server setup. Place the following code in your htaccess file.
 
 ```htaccess
