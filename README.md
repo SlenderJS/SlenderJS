@@ -22,11 +22,27 @@ Enjoy!
 
 Minified with: https://skalman.github.io/UglifyJS-online/
 
+---
+
 ## Example Code
 
-We have put together some [Example Code](https://github.com/SlenderJS/SlenderJS/tree/main/example), the code in the example closely follows our [Usage Guide](https://github.com/TwistPHP/SlenderJS#usage-guide). There is more information and code examples in the usages guide so be sure to read over it before you get start.
+We have put together some [Example Code](https://github.com/SlenderJS/SlenderJS/tree/main/example), the code in the example closely follows our [Usage Guide](https://github.com/SlenderJS/SlenderJS#usage-guide). There is more information and code examples in the usages guide so be sure to read over it before you get start.
+
+---
 
 ## Usage Guide
+
+### Getting an Instance
+
+You must start an instance for the SlenderJS library before you can use it, to do this you need to call `new SlenderJS();`. There is no need to return it to a variable as it registers as a global accessible instance.
+
+There are two optional parameters which can be passed into your new instance call, be sure to check the documentation for all the available options!
+
+| Parameter    | Type      | Purpose       |
+| ------------ | --------- | ------------- |
+| options      | Object    | Main configuration options to define how the library will run. [View Full List](https://github.com/SlenderJS/SlenderJS#options-list)
+| data         | Object    | Pre-load any data that you wish to make available globally throughout the library 
+
 
 ### Register a Template
 
@@ -68,7 +84,7 @@ When using routing you will need to have an `<div id="app"></div>` in your page 
 
 `SlenderJS.router.start();`
 
-`start()` has two optional parameters that can be passed though
+Two optional parameters that can be passed though to the `start()` function call
 
 | Parameter                     | Type      | Purpose       |
 | ----------------------------- | --------- | ------------- |
@@ -211,6 +227,26 @@ Let us know if you have written a plugin or expansion that you wish to share wit
 | router_page_domcontentloaded  | Router    | 2      | Fires after a page transition has been complete and all included scripts and stylesheets have been loaded
 
 ** Tags can be used as a function or by passing in an array of data
+
+### Options List
+
+A list of all the options that can be passed in when starting your instance of SlenderJS
+
+| Option                    | Library   | Type    | Purpose       |
+| --------------------------| --------- | ------- | ------------- |
+| hooks                     | Hooks     | Object  | A pre-defined object containing all your registered hooks
+| templates                 | Render    | Object   | A pre-defined object containing all your registered templates, alternative to added each template using the `addTemplate()` call
+| domains                   | Router    | Array   | An array of domains that are supported by the website/app being built
+| routes                    | Router    | Object  | A pre-defined object containing all your registered routes, alternative to added each route using the `addRoute()` call
+| transition                | Router    | String  | The page transition to be used, 'fade' is a built in option (Default: default)
+| meta                      | Router    | Array   | Array of site wide metadata ***
+| script                    | Router    | Array   | Array of site wide script tags ***
+| link                      | Router    | Array   | Array of site wide CSS stylesheets ***
+| style                     | Router    | Array   | Array of site wide inline styles ***
+
+*** Each array item consists of an object, each key is output as a HTML attribute, a key of 'contents' will output directly into the tag for example the style code for inline CSS
+
+---
 
 ## Contributions & Support
 

@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.3.2
+ * @version		1.3.3
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -31,10 +31,10 @@
 })(this, window, document, function(window, document){
 	'use strict';
 
-	function init(options){
+	function init(options,data){
 
 		//Generic data storage
-		this.data = {};
+		this.data = data || {};
 
 		//Store the startup options in global config
 		this.conf = options;
