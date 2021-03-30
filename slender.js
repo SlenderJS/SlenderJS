@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.3.4
+ * @version		1.3.5
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -989,10 +989,13 @@
 			window.addEventListener('click', function(e){
 
 				let url = null;
-				if(e.target.matches('a')){
-					url = e.target.getAttribute('href');
-				}else if(e.target.matches('[data-smart-route]')){
-					url = e.target.getAttribute('data-smart-route');
+				let elmA = $.closest(e.target,'a')
+				let elmSmart = $.closest(e.target,'[data-smart-route]')
+
+				if(elmA){
+					url = elmA.getAttribute('href');
+				}else if(elmSmart){
+					url = elmSmart.getAttribute('data-smart-route');
 				}
 
 				if(url){
@@ -1037,6 +1040,16 @@
 
 		$.isEmpty = function(val){
 			return (val === undefined || val == null || val.length <= 0);
+		}
+
+		$.closest = function(el,selector){
+			while(!el.matches(selector)){
+				el = el.parentNode
+				if(!el || el.nodeName === 'BODY'){
+					return null;
+				}
+			}
+			return el || null;
 		}
 
 		$.preg_replace = function(pattern,replacement,data){
