@@ -10,11 +10,15 @@ Simple to use, expandable and light weight!
 
 Download a copy of the library from the GIT repo and including it in the head of your **index.html** file.
 
-`<script src='slender.min.js'></script>`
+```html
+<script src='slender.min.js'></script>
+```
 
 First off you will need to initialise the Slender engine by calling the following command
 
-`new SlenderJS();`
+```javascript
+new SlenderJS();
+```
 
 Now you will be free to use SlenderJS anywhere in your code.
 
@@ -34,7 +38,17 @@ We have put together some [Example Code](https://github.com/SlenderJS/SlenderJS/
 
 ### Getting an Instance
 
-You must start an instance for the SlenderJS library before you can use it, to do this you need to call `new SlenderJS();`. There is no need to return it to a variable as it registers as a global accessible instance.
+You must start an instance for the SlenderJS library before you can use it, to do this you need to call the 'SlenderJS' factory. There is no need to return it to a variable as it registers as a global accessible instance.
+
+```javascript
+new SlenderJS(
+    {
+        transition:'fade',
+        domains:['example.com']
+    },
+    { "GoogleAnalyticsCode": "GA-XXXXXXX" }
+);
+```
 
 There are two optional parameters which can be passed into your new instance call, be sure to check the documentation for all the available options!
 
@@ -55,6 +69,7 @@ SlenderJS.render.addTemplate('/page.tpl',
 ```
 
 For more information about templating please see the TwistPHP template example documentation.
+
 
 ### Register a Page
 
