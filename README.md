@@ -108,7 +108,7 @@ Two optional parameters that can be passed though to the `start()` function call
 
 Routing using virtual paths will require the use of .htaccess or equivalent depending on your server setup. Place the following code in your htaccess file.
 
-```htaccess
+```apacheconf
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /

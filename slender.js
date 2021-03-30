@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.3.3
+ * @version		1.3.4
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -385,10 +385,12 @@
 
 			switch(strType){
 				case'data':
+				case'setting'://Keeps things more compatible with TwistPHP
+				case'global':
 					//The tag is looking for data to be returned
-					let results = processArrayItem(strReference, arrData, blReturnArray);
-					if(results.status === true){
-						rawHTML = replaceTag(rawHTML, strTag, results.return, strFunction, results.return_raw, arrParameters);
+					let result = (strType === 'data') ? processArrayItem(strReference, arrData, blReturnArray) : processArrayItem(strReference, $.data, blReturnArray);
+					if(result.status === true){
+						rawHTML = replaceTag(rawHTML, strTag, result.return, strFunction, result.return_raw, arrParameters);
 					}
 					break;
 				case'date':
