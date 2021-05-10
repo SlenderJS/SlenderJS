@@ -112,6 +112,13 @@ Routing using virtual paths will require the use of .htaccess or equivalent depe
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+    
+    ErrorDocument 404 /index.html
+
+    RewriteCond %{QUERY_STRING} ^rc=404 [NC,OR]
+    RewriteCond %{QUERY_STRING} &rc=404 [NC]
+    RewriteRule ^ - [R=404,QSA,L]
+ 
     RewriteRule ^index.html$ - [L]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
@@ -158,13 +165,23 @@ link:[
 
 Adding a redirect is simple. All you need is one line of code which is below. The first parameter is the path you want the redirect to happen on, the second parameter is where you want the redirect to go.
 
+⚠️ **Recommendation**: Where possible setup redirects directly in your .htaccess file rather than using the client side!
+
 ```javascript
 SlenderJS.router.addRedirect('/home','https://example.com');
 ```
 
+### Searching registered Routes
+
+When creating a dynamic search page to search your pages the `findRoute` function is a good place to start. This function allows you to search in both the URL and the associated page data. In the below example we are searching for registered page URL's that contains the word `second`.
+
+```javascript
+let results = SlenderJS.router.findRoute('second','path',false);
+```
+
 ### Rendering a Template
 
-Using the templating system without routing or for another purpose can be achived using the below code.
+Using the templating system without routing or for another purpose can be achieved using the below code.
 
 ```javascript
 let renderedHTML = SlenderJS.render.build('/page.tpl',{

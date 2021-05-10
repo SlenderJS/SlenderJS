@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.3.5
+ * @version		1.4.0
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -678,7 +678,8 @@
 			start: start,
 			page: page,
 			addRoute: addRoute,
-			addRedirect: addRedirect
+			addRedirect: addRedirect,
+			findRoute: findRoute,
 		};
 
 		//Set all the functions that are privately accessible (Via ThirdParty registered Hooks)
@@ -719,6 +720,7 @@
 
 			let blWaitForDOM = blDOMContentLoaded || false
 			$.data.startPath = startPath || window.location.pathname
+			$.data.GET = $.parseQueryString(window.location.href);
 
 			//Add the default/site wide head tags
 			generateTags('meta',$.conf.meta,false);
@@ -740,12 +742,12 @@
 					if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
 						clearInterval($.data.isLoadedInterval);
 						console.log('Render Page ... ['+$.data.startPath+']');
-						$.func.router.page($.data.startPath);
+						$.func.router.page($.data.startPath,$.data.GET);
 					}
 				},200,$);
 			}else{
 				//Render the landing page
-				page($.data.startPath);
+				page($.data.startPath,$.data.GET);
 			}
 		}
 
@@ -759,10 +761,50 @@
 			$.func.hooks.fire('router_add_redirect',[ path, redirectUrl ]);
 		}
 
-		function page(path){
+		function findRoute(query,type,exactMatch){
 
-			//Set the default page as 404, use "var" so that we can pass by REF in the hooks
-			var routerCurrent = (path in $.conf.routes) ? $.conf.routes[path] : $.conf.routes['404'];
+			const subFilter = (routes,query,type,match,$) => {
+				let out = [];
+				switch(type){
+					case'path':
+						for(let path in routes){
+							if((match && path === query) || (!match && path.toLowerCase().includes(query.toLowerCase()))){
+								out[path] = routes[path];
+							}
+						}
+						break;
+					default:
+						for(let path in routes){
+							if(type in routes[path] && (
+								(match && routes[path][type] == query)
+								|| (!match && $.inArray(typeof routes[path][type],['boolean','number','float','integer']) && routes[path][type] == query)
+								|| (!match && typeof routes[path][type] === 'string' && routes[path][type].toLowerCase().includes(query.toLowerCase()))
+								|| (!match && typeof routes[path][type] === 'object' && $.inArray(query,routes[path][type]))
+							)
+							){
+								out[path] = routes[path];
+							}
+						}
+						break;
+				}
+				return out;
+			}
+
+			let results = $.conf.routes;
+			for(let i = 0; i < query.length; i++){
+				results = subFilter(results,query[i],type[i],exactMatch[i],$);
+			}
+
+			return results;
+		}
+
+		function page(path,GET){
+
+			GET = GET || {};
+
+			//Load the page, if the page doesn't exist check the rc get param (used to trigger 404 or other response code page)
+			//Use VAR instead of LET so that we can access 'routerCurrent' outside and within sub functions
+			var routerCurrent = (path in $.conf.routes) ? $.conf.routes[path] : (('rc' in GET) ? $.conf.routes[GET['rc']] : {'redirect': path+'?rc=404'});
 
 			if('redirect' in routerCurrent){
 				window.location.href = routerCurrent.redirect;
@@ -1003,7 +1045,8 @@
 					let urlData = $.parseUri(url);
 					if(url && !url.startsWith('#') && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains))){
 						e.preventDefault();
-						page(urlData.pathname);
+						$.data.GET = $.parseQueryString(url);
+						page(urlData.pathname,$.data.GET);
 					}
 				}
 			});
@@ -1098,6 +1141,21 @@
 		}
 
 		/**
+		 * See: https://gomakethings.com/getting-all-query-string-values-from-a-url-with-vanilla-js/
+		 */
+		$.parseQueryString = function(url){
+			let params = {};
+			let parser = document.createElement('a');
+			parser.href = url;
+			let vars = parser.search.substring(1).split('&');
+			for(let i=0; i < vars.length; i++){
+				let pair = (vars[i].includes('=')) ? vars[i].split('=') : [vars[i],''];
+				params[pair[0]] = decodeURIComponent(pair[1]);
+			}
+			return params;
+		};
+
+		/**
 		 * See: https://gist.github.com/Jezternz/c8e9fafc2c114e079829974e3764db75
 		 */
 		$.csvToArray = function(data,delim){
@@ -1117,9 +1175,7 @@
 
 		/**
 		 * See: https://stackoverflow.com/questions/1655769/fastest-md5-implementation-in-javascript
-		 * A formatted version of a popular md5 implementation.
-		 * Original copyright (c) Paul Johnston & Greg Holt.
-		 * The function itself is now 42 lines long.
+		 * A formatted version of a popular md5 implementation, Original copyright (c) Paul Johnston & Greg Holt.
 		 */
 		$.md5 = function(inputString){
 			var hc="0123456789abcdef";
