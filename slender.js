@@ -424,6 +424,7 @@
 						$.func.hooks.register('render_tags','parent',arrData);
 
 						for(let i=0; i < arrData[strReference].length; i++){
+							arrData[strReference][i]['repeater_index'] = i;
 							strTagData += build(arrParameters['view'],arrData[strReference][i],blRemoveTags,blProcessTags);
 						}
 
@@ -896,7 +897,7 @@
 						tag.setAttribute('data-slender-'+dataKey, '');
 					}
 
-					if('href' in items[i] || 'src' in items[i]){
+					if(!('rel' in items[i] && items[i]['rel'] === 'canonical') && ('href' in items[i] || 'src' in items[i])){
 						tag.setAttribute('data-slender-loaded', '0');
 						tag.onload = function(e){ e.target.setAttribute('data-slender-loaded','1');}
 					}
