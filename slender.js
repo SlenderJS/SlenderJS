@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.4.0
+ * @version		1.4.1
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -449,6 +449,8 @@
 						}
 
 						rawHTML = replaceTag(rawHTML,strTag,strReplacementData,strFunction,[],arrParameters);
+					}else{
+						rawHTML = rawHTML.replace('{'+strTag+'}','');
 					}
 
 					break;
