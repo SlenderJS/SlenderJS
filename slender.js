@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * @version		1.4.1
+ * @version		2.0.0
  * @author		Dan Walker, James Durham
  * @license		https://www.gnu.org/licenses/gpl.html GPL License
  * @link		https://github.com/TwistPHP/SlenderJS
@@ -37,22 +37,35 @@
 		this.data = data || {};
 
 		//Store the startup options in global config
-		this.conf = options;
-
-		//Load in the global functions (attach them to this)
-		new SlenderGlobals(this);
+		this.conf = options || {};
 
 		this.func = {};
 		this.func.data = this.data;
 		this.priv = {};
 
-		this.app = document.querySelector('#app') || null;
-		this.currentPage = document.querySelector('#app .slenderPage.slenderPageCurrent') || null;
-		this.nextPage = document.querySelector('#app .slenderPage.slenderPageNext') || null;
-
+		new SlenderGlobals(this);
 		new SlenderHooks(this);
 		new SlenderRender(this);
 		new SlenderRouter(this);
+
+		//Return all the globals for public use if option globals is true
+		if(this.conf.globals){
+			this.func.globals = {
+				arrayKeys:this.arrayKeys,
+				inArray:this.inArray,
+				arrayParse:this.arrayParse,
+				isEmpty:this.isEmpty,
+				closest:this.closest,
+				preg_replace:this.preg_replace,
+				preg_match:this.preg_match,
+				preg_match_all:this.preg_match_all,
+				parseUri:this.parseUri,
+				parseQueryString:this.parseQueryString,
+				csvToArray:this.csvToArray,
+				md5:this.md5,
+				date:this.date
+			};
+		}
 
 		//Create the global instance of the library
 		window.SlenderJS = this.func;
@@ -140,7 +153,9 @@
 			build: build,
 			buildRaw: buildRaw,
 			addTemplate: addTemplate,
-			isTemplate: isTemplate
+			addTemplates: addTemplates,
+			isTemplate: isTemplate,
+			templatePath: templatePath
 		};
 
 		let defaultTemplates = {
@@ -154,9 +169,20 @@
 		$.conf.currentTag = $.conf.currentTag || null;
 		$.conf.currentTemplate = $.conf.currentTemplate || null;
 
-		function build(template,templateData){
+		function templatePath(path){
+			if(path !== undefined){
+				$.conf.currentTemplate = path;
+			}
+			return $.conf.currentTemplate;
+		}
 
-			let rawHTML = 'Error: Template "'+template+'" not found';
+		function build(template,templateData,parameters,blRemoveTags,blProcessTags){
+
+			parameters = parameters || [];
+			blRemoveTags = blRemoveTags || false;
+			blProcessTags = (blProcessTags !== false);
+
+			let rawHTML = '';
 			let previousTemplate = $.conf.currentTemplate
 
 			//Template is relative to current template
@@ -166,7 +192,10 @@
 
 			if(template in $.conf.templates){
 				$.conf.currentTemplate = template;
-				rawHTML = buildRaw($.conf.templates[template],templateData);
+				rawHTML = (blProcessTags) ? buildRaw($.conf.templates[template],templateData,parameters) : $.conf.templates[template];
+			}else{
+				console.error('SlenderJS: Template "'+template+'" not found');
+				rawHTML = '<div class="SlenderJSError"><p>SlenderJS: Template "'+template+'" not found<br><small><strong>SlenderJS Render: </strong>The requested template was not found</small></p></div>';
 			}
 
 			//Restore the previous current template after the current build has run
@@ -175,10 +204,12 @@
 			return rawHTML;
 		}
 
-		function buildRaw(rawHTML,templateData){
+		function buildRaw(rawHTML,templateData,parameters){
+
+			parameters = parameters || [];
 
 			if(typeof rawHTML === 'function'){
-				return rawHTML.call($, ...[templateData]);
+				return rawHTML.call($, ...[templateData,parameters]);
 			}
 
 			let tags = getTags(rawHTML);
@@ -195,6 +226,10 @@
 		function addTemplate(strTemplateName,strHTML){
 			$.conf.templates[strTemplateName] = strHTML;
 			$.func.hooks.fire('render_add_template',[ strTemplateName, strHTML ]);
+		}
+
+		function addTemplates(templates){
+			$.conf.templates = {...$.conf.templates,...templates};
 		}
 
 		function isTemplate(template){
@@ -380,8 +415,8 @@
 			strReference = arrParameters[0];
 			arrParameters = arrParameters[1];
 
-			let blRemoveTags = ('remove-tags' in arrParameters && arrParameters['remove-tags'] === true);
-			let blProcessTags = (!('process-tags' in arrParameters && arrParameters['process-tags'] === false));
+			let blRemoveTags = ('remove-tags' in arrParameters && arrParameters['remove-tags']);//Default: false
+			let blProcessTags = (!('process-tags' in arrParameters) || arrParameters['process-tags']);//Default: true
 
 			switch(strType){
 				case'data':
@@ -408,7 +443,7 @@
 						strReference = ($.conf.currentTemplate.split('/').slice(0,-1).join('/')+'/'+strReference.replace('./','')).replace('//','/');
 					}
 
-					strTagData = build(strReference,arrData,blRemoveTags,blProcessTags);
+					strTagData = build(strReference,arrData,arrParameters,blRemoveTags,blProcessTags);
 					rawHTML = replaceTag(rawHTML,strTag,strTagData,strFunction,[],arrParameters);
 
 					break;
@@ -416,20 +451,26 @@
 				case'repeater':
 
 					$.conf.viewParams = arrParameters;
-					//arrData = typeof(arrData) == 'object' ? [arrData,...arrParameters] : arrParameters;
 
-					if(!$.isEmpty(arrParameters['view']) && strReference in arrData && arrData[strReference].length){
+					let repeaterData = $.arrayParse(strReference,arrData);
+					if(!$.isEmpty(arrParameters['view']) && repeaterData !== null){
 
 						//Allow the original data to be accessed via parent
 						$.func.hooks.register('render_tags','parent',arrData);
 
-						for(let i=0; i < arrData[strReference].length; i++){
-							arrData[strReference][i]['repeater_index'] = i;
-							strTagData += build(arrParameters['view'],arrData[strReference][i],blRemoveTags,blProcessTags);
+						for(let key in repeaterData){
+							if(repeaterData.hasOwnProperty(key)){
+								repeaterData[key]['repeater_index'] = key;
+								strTagData += build(arrParameters['view'],repeaterData[key],arrParameters,blRemoveTags,blProcessTags);
+							}
 						}
 
 						//Remove the original parent data tag
 						$.func.hooks.cancel('render_tags','parent');
+					}else if('view-empty' in arrParameters){
+						strTagData = build(arrParameters['view-empty'],arrData,arrParameters,blRemoveTags,blProcessTags);
+					}else if('empty' in arrParameters){
+						strTagData = arrParameters['empty'];
 					}
 
 					rawHTML = replaceTag(rawHTML,strTag,strTagData,strFunction,[],arrParameters);
@@ -437,7 +478,8 @@
 
 				default:
 
-					let strReplacementData = $.func.hooks.fire('render_tags',[ strReference, arrData, arrParameters ],strType)
+					let strReplacementData = $.func.hooks.fire('render_tags',[ strReference, arrData, arrParameters ],strType);
+
 					if(!$.isEmpty(strReplacementData)){
 
 						//An array of data has been returned, this is data tags
@@ -472,7 +514,7 @@
 
 					let mxdTempData = $.arrayParse(strKey,arrData);
 
-					result.status = !$.isEmpty(mxdTempData);
+					result.status = !(mxdTempData === null);//!$.isEmpty(mxdTempData);
 					result.return = (typeof(arrData[strKey]) == 'object' && blReturnArray === false) ? JSON.stringify(mxdTempData, null, 4) : mxdTempData;
 					result.return_raw = mxdTempData;
 
@@ -496,6 +538,7 @@
 					'count',
 					'strlen','strtolower','strtoupper',
 					//'prettytime','bytestosize',
+					'urlencode','urldecode',
 					'date'
 				];
 
@@ -511,6 +554,10 @@
 							break;
 						case'strtoupper':
 							returndata = return_raw.toUpperCase();
+							break;
+						case'intval':
+						case'parseint':
+							returndata = parseInt(return_raw);
 							break;
 						case'date':
 
@@ -530,19 +577,28 @@
 							break;
 						case'bytestosize':
 							break;
+						case'urlencode':
+							returndata = encodeURI(return_raw);
+							break;
+						case'urldecode':
+							returndata = decodeURI(return_raw);
+							break;
 					}
 
 				}else{
-					console.error("SlenderJS :: function '"+strFunction+"' is not available");
+					console.error('SlenderJS: Function "'+strFunction+'" is not available');
+					return '<div class="SlenderJSError"><p>SlenderJS: Function "'+strFunction+'" is not available<br><small><strong>SlenderJS Render: </strong>The requested render tag function was not found</small></p></div>';
 				}
 			}
 
-			return rawHTML.replace('{'+tag+'}',returndata);
+			//Allow for iOS 13 and older as they dont support replaceALL
+			return (typeof String.prototype.replaceAll === 'function') ? rawHTML.replaceAll('{'+tag+'}',returndata) : rawHTML.replace(new RegExp('\{'+tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')+'\}', 'g'), returndata);
 		}
 
 		function condition(mxdValue1,strCondition,mxdValue2){
 
 			let blOut = false;
+			let blPass = false;
 
 			//Sanitise and detect type of each variable
 			mxdValue1 = detectType(mxdValue1);
@@ -550,13 +606,16 @@
 
 			switch(strCondition){
 				case'===':
-					blOut = (mxdValue1 === mxdValue2);
+					blPass = (mxdValue2 === 'twst-empty-variable' && ($.isEmpty(mxdValue1) || mxdValue1 === 'twst-undefined-variable'));
+					blOut = (blPass || mxdValue1 === mxdValue2);
 					break;
 				case'!==':
-					blOut = (mxdValue1 !== mxdValue2);
+					blPass = (mxdValue2 === 'twst-empty-variable' && !($.isEmpty(mxdValue1) || mxdValue1 === 'twst-undefined-variable'));
+					blOut = (blPass || mxdValue1 !== mxdValue2);
 					break;
 				case'==':
-					blOut = (mxdValue1 == mxdValue2 || (mxdValue1 == '' && mxdValue2 === 'twst-undefined-variable') || (mxdValue2 == '' && mxdValue1 === 'twst-undefined-variable'));
+					blPass = (mxdValue2 === 'twst-empty-variable' && ($.isEmpty(mxdValue1) || mxdValue1 === 'twst-undefined-variable'));
+					blOut = (blPass || mxdValue1 == mxdValue2 || (mxdValue1 == '' && mxdValue2 === 'twst-undefined-variable') || (mxdValue2 == '' && mxdValue1 === 'twst-undefined-variable'));
 					break;
 				case'<':
 					blOut = (mxdValue1 < mxdValue2);
@@ -571,7 +630,8 @@
 					blOut = (mxdValue1 >= mxdValue2);
 					break;
 				case'!=':
-					blOut = (mxdValue1 != mxdValue2);
+					blPass = (mxdValue2 === 'twst-empty-variable' && !($.isEmpty(mxdValue1) || mxdValue1 === 'twst-undefined-variable'));
+					blOut = (blPass || mxdValue1 != mxdValue2);
 					break;
 				case'*':
 					blOut = $.inArray(mxdValue2,mxdValue1);
@@ -585,6 +645,7 @@
 				case'=':
 					blOut = (mxdValue1.substr((mxdValue1.length-mxdValue2.length),mxdValue2.length) == mxdValue2);
 					break;
+
 			}
 
 			return blOut;
@@ -609,6 +670,8 @@
 					mxdValue = null;
 				}else if(blDetect && mxdValue === 'undefined'){
 					mxdValue = 'twst-undefined-variable';
+				}else if(blDetect && mxdValue === 'empty'){
+					mxdValue = 'twst-empty-variable';
 				}else if(blDetect && mxdValue === 'true'){
 					mxdValue = true;
 				}else if(blDetect && mxdValue === 'false'){
@@ -652,10 +715,10 @@
 						}
 
 						mxdValue = detectType(mxdValue);
-						arrParameters[strKey] = (mxdValue.includes('|')) ? mxdValue.split('|') : mxdValue;
+						arrParameters[strKey] = (typeof(mxdValue) === 'string' && mxdValue.includes('|')) ? mxdValue.split('|') : mxdValue;
 					}else if(mxdItem.includes('|')){
 						mxdItem = detectType(mxdItem);
-						arrParameters.push((mxdItem.includes('|')) ? mxdItem.split('|') : mxdItem);
+						arrParameters.push((typeof(mxdItem) === 'string' && mxdItem.includes('|')) ? mxdItem.split('|') : mxdItem);
 					}else{
 						mxdItem = detectType(mxdItem);
 						arrParameters[mxdItem] = true;
@@ -680,8 +743,11 @@
 			start: start,
 			page: page,
 			addRoute: addRoute,
+			addRoutes: addRoutes,
 			addRedirect: addRedirect,
 			findRoute: findRoute,
+			current: {},
+			temp: {}
 		};
 
 		//Set all the functions that are privately accessible (Via ThirdParty registered Hooks)
@@ -690,6 +756,7 @@
 			page: page,
 			pageReady: pageReady,
 			addRoute: addRoute,
+			addRoutes: addRoutes,
 			addRedirect: addRedirect,
 			generateTags: generateTags,
 			createPageContainer: createPageContainer,
@@ -702,8 +769,9 @@
 		];
 
 		let defaultRoutes = {
-			"404": { title: 'Page Not Found', template: '/404.tpl' },
-			"403": { title: 'Permission Denied', template: '/403.tpl' }
+			"/404": { title: 'Page Not Found', template: '/404.tpl' },
+			"/403": { title: 'Permission Denied', template: '/403.tpl' },
+			"/401": { title: 'Permission Denied', template: '/401.tpl' }
 		};
 
 		//Merge in the default configs with any custom that have been set on startup
@@ -720,42 +788,57 @@
 
 		function start(blDOMContentLoaded,startPath){
 
-			let blWaitForDOM = blDOMContentLoaded || false
-			$.data.startPath = startPath || window.location.pathname
-			$.data.GET = $.parseQueryString(window.location.href);
+			if(!$.data.started){
 
-			//Add the default/site wide head tags
-			generateTags('meta',$.conf.meta,false);
-			generateTags('style',$.conf.style,false);
-			generateTags('script',$.conf.script,false);
-			generateTags('link',$.conf.link,false);
+				$.app = document.querySelector('#app') || null;
+				$.currentPage = document.querySelector('#app .slenderPage.slenderPageCurrent') || null;
+				$.nextPage = document.querySelector('#app .slenderPage.slenderPageNext') || null;
 
-			if(!$.currentPage){
-				$.app.innerHTML = '<div class="slenderPage slenderPageCurrent"></div>';
-				$.currentPage = $.app.querySelector('.slenderPage.slenderPageCurrent');
-			}
+				let blPreRendered = (typeof window.SlenderJS_startPreRendered !== undefined && !$.isEmpty(window.SlenderJS_startPreRendered)) ? window.SlenderJS_startPreRendered : false;
+				let blWaitForDOM = blDOMContentLoaded || false;
 
-			//Add a class to hide a page by default when it is first loaded in
-			generateTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;' }]);
+				$.data.loadingPage = false;
+				$.data.startPath = (typeof window.SlenderJS_startPath !== undefined && !$.isEmpty(window.SlenderJS_startPath)) ? window.SlenderJS_startPath : (startPath || window.location.pathname);
+				$.data.GET = $.parseQueryString(window.location.href);
 
-			if(blWaitForDOM){
-				console.log('Waiting for DOM to load ...');
-				$.data.isLoadedInterval = setInterval(function($){
-					if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
-						clearInterval($.data.isLoadedInterval);
-						console.log('Render Page ... ['+$.data.startPath+']');
-						$.func.router.page($.data.startPath,$.data.GET);
+				if(!blPreRendered){
+
+					//Add the default/site wide head tags
+					generateTags('meta',$.conf.meta,false);
+					generateTags('style',$.conf.style,false);
+					generateTags('script',$.conf.script,false);
+					generateTags('link',$.conf.link,false);
+
+					//Add a class to hide a page by default when it is first loaded in
+					generateTags('style',[{contents: '.slenderPage{ display:block; } .slenderPage.slenderPageHidden{ display:none!important;}' }]);
+
+					if(blWaitForDOM){
+
+						console.log('Waiting for DOM to load ...');
+						$.data.isLoadedInterval = setInterval(function($){
+							if(document.querySelectorAll('[data-slender-loaded="0"]').length === 0){
+								clearInterval($.data.isLoadedInterval);
+								console.log('Render Page ... ['+$.data.startPath+']');
+								$.func.router.page($.data.startPath,$.data.GET);
+							}
+						},10,$);
+					}else{
+						//Render the landing page
+						page($.data.startPath,$.data.GET);
 					}
-				},200,$);
-			}else{
-				//Render the landing page
-				page($.data.startPath,$.data.GET);
+				}
+
+				$.data.started = true;
 			}
 		}
 
 		function addRoute(path,route){
 			$.conf.routes[path] = route;
 			$.func.hooks.fire('router_add_route',[ path, route ]);
+		}
+
+		function addRoutes(routes){
+			$.conf.routes = routes;
 		}
 
 		function addRedirect(path, redirectUrl){
@@ -765,13 +848,42 @@
 
 		function findRoute(query,type,exactMatch){
 
+			const expandAlias = (aliasRoute) => {
+				//Support for Alias pages, pass 'alias' and the page ID in the router data (Alias must be cloned to prevent ref passing)
+				if(aliasRoute.alias && aliasRoute.alias > 0){
+					let aliasPage = SlenderJS.router.findRoute([aliasRoute.alias],['id'],[true]);
+					aliasRoute = (aliasPage && Object.keys(aliasPage).length > 0) ? {...JSON.parse(JSON.stringify(aliasPage[Object.keys(aliasPage)[0]])),...aliasRoute} : aliasRoute;
+				}
+				return aliasRoute;
+			}
+
 			const subFilter = (routes,query,type,match,$) => {
+
+				let searchKey = '';
+				if(typeof type === 'string' && type.indexOf('/') !== -1){
+					searchKey = type;
+					type = 'search';
+				}
+
 				let out = [];
 				switch(type){
 					case'path':
 						for(let path in routes){
 							if((match && path === query) || (!match && path.toLowerCase().includes(query.toLowerCase()))){
-								out[path] = routes[path];
+								out[path] = expandAlias(routes[path]);
+							}
+						}
+						break;
+					case'search':
+						for(let path in routes){
+							let result = $.arrayParse(searchKey,routes[path],'/');
+							if(
+								(match && result === query)
+								|| (!match && $.inArray(typeof result,['boolean','number','float','integer']) && result == query)
+								|| (!match && typeof result === 'string' && result.toLowerCase().includes(query.toLowerCase()))
+								|| (!match && typeof result === 'object' && $.inArray(query,result))
+							){
+								out[path] = expandAlias(routes[path]);
 							}
 						}
 						break;
@@ -784,7 +896,7 @@
 								|| (!match && typeof routes[path][type] === 'object' && $.inArray(query,routes[path][type]))
 							)
 							){
-								out[path] = routes[path];
+								out[path] = expandAlias(routes[path]);
 							}
 						}
 						break;
@@ -793,43 +905,96 @@
 			}
 
 			let results = $.conf.routes;
-			for(let i = 0; i < query.length; i++){
-				results = subFilter(results,query[i],type[i],exactMatch[i],$);
+			if(query !== 'debug'){
+				for(let i = 0; i < query.length; i++){
+					results = subFilter(results,query[i],type[i],exactMatch[i],$);
+				}
 			}
 
 			return results;
 		}
 
-		function page(path,GET){
+		function page(path,GET,transition){
 
-			GET = GET || {};
+			GET = GET || $.parseQueryString(path);
+			transition = transition || null;
 
-			//Load the page, if the page doesn't exist check the rc get param (used to trigger 404 or other response code page)
-			//Use VAR instead of LET so that we can access 'routerCurrent' outside and within sub functions
-			var routerCurrent = (path in $.conf.routes) ? $.conf.routes[path] : (('rc' in GET) ? $.conf.routes[GET['rc']] : {'redirect': path+'?rc=404'});
-
-			if('redirect' in routerCurrent){
-				window.location.href = routerCurrent.redirect;
-				return true;
+			if(!$.app){
+				$.app = document.querySelector('#app') || null;
 			}
 
-			//Ensure that all the defaults are configured
-			routerCurrent.title = routerCurrent.title || '';
-			routerCurrent.template = routerCurrent.template || '';
-			routerCurrent.data = routerCurrent.data || [];
-			routerCurrent.meta = routerCurrent.meta || [];
-			routerCurrent.preventLoad = false;
-
-			//Fire the render page hooks
-			$.func.hooks.fire('router_page',[ path, routerCurrent ]);
-
-			if(!routerCurrent.preventLoad){
-				//Render the page and header, display the page using push states
-				pushState(path,routerCurrent.title,pageBody(path, routerCurrent),routerCurrent);
+			if(!$.currentPage){
+				$.app.innerHTML = '<div class="slenderPage slenderPageCurrent"></div>';
+				$.currentPage = $.app.querySelector('.slenderPage.slenderPageCurrent');
 			}
 
-			//Reset the value
-			routerCurrent.preventLoad = false;
+			if(!$.data.loadingPage){
+
+				//Reset page queue
+				$.data.pageQueue = null;
+
+				//Reset the temp data for the page
+				$.func.router.temp = {};
+
+				//A page is loading, prevent any further page load requests until page is loaded
+				$.data.loadingPage = true;
+
+				//Load the page, if the page doesn't exist redirect to htaccess (if $.conf.htaccess404 == true) else output 404 page
+				//Use VAR instead of LET so that we can access 'routerCurrent' outside and within sub functions
+				var routerCurrent = (path in $.conf.routes) ? $.conf.routes[path] : (($.conf.htaccess404) ? {'redirect': path} : $.conf.routes['/404']);
+
+				//Support for Alias pages, pass 'alias' and the page ID in the router data
+				if(routerCurrent.alias && routerCurrent.alias > 0){
+					let aliasPage = SlenderJS.router.findRoute([routerCurrent.id],['id'],[true]);
+					routerCurrent = (aliasPage) ? aliasPage[Object.keys(aliasPage)[0]] : $.conf.routes['/404'];
+				}
+
+				//Fire the render page hooks
+				routerCurrent = $.func.hooks.fire('router_page_restriction',[ path, routerCurrent, $ ],'router_page_restriction');
+
+				if('redirect' in routerCurrent){
+					if(routerCurrent.redirect in $.conf.routes){
+						$.data.loadingPage = false;
+						page(routerCurrent.redirect);
+						return true;
+					}else{
+						window.location.href = routerCurrent.redirect;
+						return true;
+					}
+				}
+
+				//Ensure that all the defaults are configured
+				routerCurrent.title = routerCurrent.title || '';
+				routerCurrent.template = routerCurrent.template || '';
+				routerCurrent.data = routerCurrent.data || [];
+				routerCurrent.meta = routerCurrent.meta || [];
+				routerCurrent.get = GET;
+				routerCurrent.preventLoad = false;
+
+				//Make the current route publicly accessible
+				$.func.router.current = routerCurrent;
+
+				//Set the route data so that it is accessible throughout
+				$.func.hooks.register('render_tags','route',routerCurrent.data);
+
+				//Fire the render page hooks
+				$.func.hooks.fire('router_page',[ path, routerCurrent ]);
+
+				if(!routerCurrent.preventLoad){
+					//Render the page and header, display the page using push states
+					pushState(path,routerCurrent.title,pageBody(path, routerCurrent),routerCurrent,transition);
+				}
+
+				//Reset the value
+				routerCurrent.preventLoad = false;
+			}else{
+				console.warn('SlenderJS :: Page is already loading, page '+path+' has been queued');
+				$.data.pageQueue = {
+					path: path,
+					get: GET,
+					transition: transition
+				};
+			}
 		}
 
 		function pageBody(path, route){
@@ -837,7 +1002,10 @@
 			//Fire the render page body hooks
 			$.func.hooks.fire('router_page_body',[ path, route ]);
 
-			return $.func.render.build(route.template,route.data);
+			$.func.router.temp.pageBody = { html: $.func.render.build(route.template,route.data) };
+			$.func.hooks.fire('router_page_body_html',[ $.func.router.temp.pageBody ]);
+
+			return $.func.router.temp.pageBody.html;
 		}
 
 		function pageHead(pageInfo){
@@ -862,8 +1030,11 @@
 
 		function pageReady(){
 
+			//Return to the top of the page
+			window.scrollTo(0,0);
+
 			let path = $.currentPage.getAttribute('data-path');
-			let route = (path in $.conf.routes) ? $.conf.routes[path] : $.conf.routes['404'];
+			let route = (path in $.conf.routes) ? $.conf.routes[path] : $.conf.routes['/404'];
 
 			pageHead(route);
 
@@ -875,9 +1046,12 @@
 			let scriptTags = [];
 			let scripts = $.currentPage.querySelectorAll('script');
 			for(let i = 0; i < scripts.length; i++){
-				let newScript = {
-					'contents': (scripts[i].text || scripts[i].textContent || scripts[i].innerHTML || "" )
-				};
+				let newScript = {};
+				if(scripts[i].src){
+					newScript['src'] = scripts[i].src;
+				}else{
+					newScript['contents'] = (scripts[i].text || scripts[i].textContent || scripts[i].innerHTML || "" );
+				}
 				scriptTags.push(newScript);
 				scripts[i].remove();
 			}
@@ -896,7 +1070,20 @@
 					console.log('SlenderJS :: DOMContentLoaded');
 					$.func.hooks.fire('router_page_domcontentloaded',[ path, route ]);
 				}
-			},200,$,path,route);
+
+				//The page has finished loading
+				$.data.loadingPage = false;
+
+				if($.data.pageQueue){
+					console.log('SlenderJS :: Loading queued page... '+$.data.pageQueue.path);
+					page(
+						$.data.pageQueue.path,
+						$.data.pageQueue.get,
+						$.data.pageQueue.transition
+					);
+				}
+
+			},25,$,path,route);
 		}
 
 		function generateTags(type,items,blPageItem,dataKey){
@@ -965,14 +1152,18 @@
 			$.nextPage = $.app.querySelector('.slenderPage.slenderPageNext');
 		}
 
-		function pushState(urlPath, pageTitle, pageBody, route){
+		function pushState(urlPath, pageTitle, pageBody, route, transition){
 
-			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, route ],$.conf.transition);
+			transition = transition || $.conf.transition;
+
+			$.func.hooks.fire('router_page_transition',[ urlPath, pageTitle, pageBody, route ],transition);
 
 			window.history.pushState({
 				"pageBody":pageBody,
 				"pageTitle":pageTitle,
 				"pageInfo":route,
+				"pagePath":urlPath,
+				"pageTransition":transition,
 			},pageTitle, urlPath);
 		}
 
@@ -1025,30 +1216,32 @@
 
 			window.onpopstate = function(e){
 				if(e.state){
-					document.title = e.state.pageTitle;
-					document.body.innerHTML = e.state.pageBody;
-					pageHead(e.state.pageInfo);
+					SlenderJS.router.current = e.state.pageInfo;
+					$.func.hooks.fire('router_page_transition',[ e.state.pagePath, e.state.pageTitle, e.state.pageBody, e.state.pageInfo ],e.state.pageTransition);
 				}
 			};
 
 			window.addEventListener('click', function(e){
 
 				let url = null;
+				let transition = null;
 				let elmA = $.closest(e.target,'a')
-				let elmSmart = $.closest(e.target,'[data-smart-route]')
+				let elmRoute = $.closest(e.target,'[data-slender-route]')
 
 				if(elmA){
 					url = elmA.getAttribute('href');
-				}else if(elmSmart){
-					url = elmSmart.getAttribute('data-smart-route');
+					transition = elmA.getAttribute('data-slender-transition');
+				}else if(elmRoute){
+					url = elmRoute.getAttribute('data-slender-route');
+					transition = elmRoute.getAttribute('data-slender-transition');
 				}
 
 				if(url){
 					let urlData = $.parseUri(url);
-					if(url && !url.startsWith('#') && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains))){
+					if(elmA.getAttribute('target') !== '_blank' && (url && !url.startsWith('#') && (url.startsWith('/') || $.inArray(urlData.hostname,$.conf.domains)))){
 						e.preventDefault();
 						$.data.GET = $.parseQueryString(url);
-						page(urlData.pathname,$.data.GET);
+						page(urlData.pathname,$.data.GET,transition);
 					}
 				}
 			});
@@ -1075,17 +1268,19 @@
 		}
 
 		$.arrayParse = function(key, arrData, splitChar){
-			splitChar = splitChar || '/';
-			let arrParts = key.split(splitChar);
-			key = arrParts.splice(0,1);
-			if(typeof arrParts === 'object' && key in arrData){
-				return (arrParts.length) ? this.arrayParse(arrParts.join(splitChar),arrData[key],splitChar) : arrData[key];
+			if(typeof arrData !== 'undefined' && arrData !== null){
+				splitChar = splitChar || '/';
+				let arrParts = key.split(splitChar);
+				key = arrParts.splice(0,1);
+				if(typeof arrParts === 'object' && key in arrData){
+					return (arrParts.length) ? this.arrayParse(arrParts.join(splitChar),arrData[key],splitChar) : arrData[key];
+				}
 			}
 			return null;
 		}
 
 		$.isEmpty = function(val){
-			return (val === undefined || val == null || val.length <= 0);
+			return (val === undefined || val == null || val === 0 || val === '0' || val.length <= 0);
 		}
 
 		$.closest = function(el,selector){
@@ -1264,7 +1459,7 @@
 				i: function(){return _pad(jsdate.getMinutes(), 2)},
 				s: function(){return _pad(jsdate.getSeconds(), 2)},
 				u: function(){return _pad(jsdate.getMilliseconds() * 1000, 6)},
-				e: function(){const msg = 'Not supported (see source code of date() for timezone on how to add support)'; throw new Error(msg)},
+				e: function(){return jsdate.toLocaleDateString(undefined, {day:'2-digit',timeZoneName: 'short' }).substring(4);},
 				I: function(){const a = new Date(f.Y(), 0),c = Date.UTC(f.Y(), 0),b = new Date(f.Y(), 6),d = Date.UTC(f.Y(), 6); return ((a - c) !== (b - d)) ? 1 : 0},
 				O: function(){const tzo = jsdate.getTimezoneOffset(), a = Math.abs(tzo); return (tzo > 0 ? '-' : '+') + _pad(Math.floor(a / 60) * 100 + a % 60, 4)},
 				P: function(){const O = f.O(); return (O.substr(0, 3) + ':' + O.substr(3, 2))},
@@ -1277,7 +1472,7 @@
 			const _date = function (format, timestamp) {
 				jsdate = (timestamp === undefined ? new Date() // Not provided
 						: (timestamp instanceof Date) ? new Date(timestamp) // JS Date()
-							: new Date(timestamp * 1000) // UNIX timestamp (auto-convert to int)
+							: (Number.isInteger(timestamp)) ? new Date(timestamp * 1000) : new Date(timestamp.replace(' ','T'))
 				)
 				return format.replace(formatChr, formatChrCb)
 			}
